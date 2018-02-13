@@ -1,0 +1,58 @@
+---
+title: "BriExit Survey Data Exploration"
+output: html_notebook
+---
+## Goal
+After first meeting, we will try the first approach:
+
+* Step 1. To visualize the general "opinion landscape" on leave/stay in the EU for each wave of survey. 
+* Step 2. Further investigate the difference between sub demographic groups: 
+** Age_group
+Education
+Social Economic Status (?)
+Urban rural
+Party ID
+Political philosophy
+Conservative -> break from EU
+Pro-labour -> stay in EU
+
+
+```{r}
+# Read in
+#library(readstata13)
+#dat <- read.dta13("data/BES2017_W13_Panel_v1.2.dta")
+```
+# of weights that said yes/ # of weights that said yes + said no 
+Wave 1: core weight
+```{r}
+## figure out weight
+library(tidyverse)
+
+## create a dataset that is wave specific 
+for(i in 1: 13){
+  #wave_num <- paste0("wave",i);
+  dat %>% filter(wave1 == 1, euRefVoteW1== "Stay/remain in the EU") 
+  %>% summarise(stay = sum(wt_core_W1, na.rm = TRUE))
+  
+  dat %>% filter(wave1 == 1) %>% summarise(total = sum(wt_core_W1, na.rm = TRUE))
+  
+  dat %>% group_by()
+}
+
+t <- dat %>%
+  filter(wave1==1) %>%
+  group_by(euRefVoteW1) %>%
+  summarise(opinion_count = sum(wt_core_W1, na.rm = TRUE))
+  
+  
+t2 <- dat %>%  
+  filter(wave1==1) %>%
+  inner_join(t) %>%
+  mutate(total_count = sum(wt_core_W1, na.rm = TRUE))%>%
+  mutate(stay_p = opinion_count/total_count) %>%
+  filter(euRefVoteW1 == "Stay/remain in the EU") %>%
+  select(stay_p) %>%
+  unique()
+
+```
+
