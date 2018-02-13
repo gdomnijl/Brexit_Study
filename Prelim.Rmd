@@ -1,32 +1,37 @@
 ---
 title: "BriExit Survey Data Exploration"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 ## Goal
 After first meeting, we will try the first approach:
 
-* Step 1. To visualize the general "opinion landscape" on leave/stay in the EU for each wave of survey. 
-* Step 2. Further investigate the difference between sub demographic groups: 
-** Age_group
-Education
-Social Economic Status (?)
-Urban rural
-Party ID
-Political philosophy
-Conservative -> break from EU
-Pro-labour -> stay in EU
+* Series 1. To visualize the general "opinion landscape" on leave/stay in the EU for each wave of survey. 
+* Series 2. Further investigate the difference between sub demographic groups:  
+    + Age_group
+    + Education
+    + Social Economic Status (?)
+    + Urban rural
+    + Party ID
+    + Political philosophy  
+    + Conservative -> break from EU
+    + Pro-labour -> stay in EU
 
 
-```{r}
+```{r, message = FALSE, warning= FALSE, echo=FALSE}
 # Read in
 #library(readstata13)
 library(tidyverse)
 
 dat <- read.csv("data/wt_age_origin.csv")
 ```
-# of weights that said yes/ # of weights that said yes + said no 
+#Note:
+\# of weights that said yes/ # of weights that said yes + said no 
 
+#Series One:
 ## Collect general stay percent from each wave
+```{r, echo = FALSE, warning=FALSE}
 stay_p <-c()
 leave_p <- c()
 for(i in 1:13){
@@ -66,20 +71,26 @@ for(i in 1:13){
   leave_p <- c(leave_p, leave/total)
   }
 }
+```
 
+```{r}
 ## plot wave 1 ~ 13 except wave 5
 wave <- c(1:4,6:13)
 opinion_p <- data.frame(wave,stay_p,leave_p)%>%
   gather(atti, percent,-wave)
-
-## bar graph
+```
+### bar graph
+```{r eval = TRUE,echo = FALSE}
 opinion_p %>% 
   ggplot(aes(y = percent, x = wave,fill = atti))+ 
   geom_bar(stat="identity",position=position_dodge()) +
   ylab("% vote over total reponse (including 'I don't know')") +
   xlab("Across waves 1 ~ 13 (except 5)")
+```
 
-## line graph
+
+### line graph
+```{r echo = FALSE}
 opinion_p %>% 
   ggplot(aes(y = percent, x = wave,group = atti, colour = atti, shape = atti))+ 
   geom_line(size=0.8) + 
@@ -93,8 +104,12 @@ opinion_p %>%
   scale_shape_discrete(name="Votes",
                         breaks=c("leave_p", "stay_p"),
                         labels=c("Leave the EU", "Stay/remain in the EU"))
-  
-## create new dataset
+```
+
+
+#Series Two: Look at demographic subgroups 
+## Step 1: create new dataset
+```{r tidy = TRUE, echo = FALSE}
 demo_dat <- dat %>% select(id,country,ageW1,countryOfBirth)
 dat2 <- c()
 for(i in 1:13){
@@ -130,9 +145,14 @@ for(i in 1:13){
 
 ins_dat <- dat2 %>% 
   inner_join(demo_dat)
+```
 
-## graph 
-# Country of origin
+
+## Step 2: graphs 
+### Country of origin 
+
+__Note: wierd drop in England origin__
+```{r tidy = TRUE, echo = FALSE}
 dat_leave <- ins_dat %>% 
   filter(vote == "Leave the EU") %>%
   select(-vote) %>%
@@ -163,7 +183,7 @@ dat_origin_p <- dat_leave_total %>%
   mutate(stay_p = stay/stay_total,
          leave_p = leave/leave_total)
 
-## wierd drop in England origin
+
 dat_origin_p %>%
   ggplot(aes(y = leave_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+
   geom_line() + 
@@ -171,8 +191,12 @@ dat_origin_p %>%
   ylab("% of voters voted 'leave' of the country of birth")+
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
   scale_x_continuous(breaks=seq(1,13))
+```
 
-## same
+
+**same**
+
+```{r echo = FALSE}
 dat_origin_p %>%
   ggplot(aes(y = stay_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+
   geom_line() + 
@@ -180,10 +204,11 @@ dat_origin_p %>%
   ylab("% of voters voted 'stay' of the country of birth")+
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
   scale_x_continuous(breaks=seq(1,13))
+```
 
 
-
-## opinion divide within each group of country origin
+### Opinion divide within each group of country origin
+```{r echo = FALSE}
 dat_total <- ins_dat %>%
   group_by(wave, vote) %>%
   summarize(each_origin_total = sum(wt,na.rm=TRUE))%>%
@@ -197,28 +222,38 @@ dat_ <- ins_dat %>%
          leave_p = leave/count) %>%
   gather(atti, percent, -countryOfBirth, -wave,-vote,)
 
+```
+
+
 
 ## continue HERE
-
-
+```{r eval = FALSE, echo = FALSE}
   ggplot(aes(y = percent, x = wave,fill = atti))+ 
   geom_bar(stat="identity",position=position_dodge()) +
   ylab("% vote over total reponse (including 'I don't know')") +
   xlab("Across waves 1 ~ 13 (except 5)")
+```
 
+
+## Check code 
+```{r eval = FALSE, echo = FALSE}
 dat_stay <- ins_dat %>% 
   filter(vote == "Stay/remain in the EU") %>%
   select(-vote)%>%
   group_by(wave,countryOfBirth) %>%
   summarise(stay = sum(wt, na.rm = TRUE))
+
 dat_origin_p <- dat_total %>%
   inner_join(dat_leave) %>%
-  inner_join(dat_stay)
+  inner_join(dat_stay) %>%
   select(wave,countryOfBirth,leave,stay) %
   ggplot(aes(y = percent, x = wave,fill = atti))+ 
   geom_bar(stat="identity",position=position_dodge()) +
   ylab("% vote over total reponse (including 'I don't know')") +
   xlab("Across waves 1 ~ 13 (except 5)")
+```
+
+```{r eval = FALSE,echo = FALSE}
 dat_p %>%
   ggplot(aes(y = leave_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+ 
   geom_line() + 
@@ -232,9 +267,12 @@ dat_p %>%
   scale_shape_discrete(name="Votes",
                        breaks=c("leave_p", "stay_p"),
                        labels=c("Leave the EU", "Stay/remain in the EU"))
+```
 
 
-## Reduce to a condensed dataset
+```{r eval = FALSE, echo = FALSE}
+
+## Reduce to a condensed dataset (used code)
 condensed <- dat[,c(1:67,72,75,index)]
 write.csv(condensed, "wt_age_origin.csv")
 
@@ -246,7 +284,7 @@ for(i in 1:13){
 }
 
 grep("^euRefVoteW1$", colnames(dat)) #265
-
+```
 
 
 
