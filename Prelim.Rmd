@@ -23,12 +23,14 @@ After first meeting, we will try the first approach:
 # Read in
 #library(readstata13)
 library(tidyverse)
-
-dat <- read.csv("data/wt_age_origin.csv")
+dat <- read.csv("wt_age_origin.csv")
 ```
 #Note:
 \# of weights that said yes/ # of weights that said yes + said no 
 
+#TODO: 
+  * missing vote for wave 5 ??? => check original dataset 
+  * find wt_new_w10
 #Series One:
 ## Collect general stay percent from each wave
 ```{r, echo = FALSE, warning=FALSE}
@@ -84,7 +86,7 @@ opinion_p <- data.frame(wave,stay_p,leave_p)%>%
 opinion_p %>% 
   ggplot(aes(y = percent, x = wave,fill = atti))+ 
   geom_bar(stat="identity",position=position_dodge()) +
-  ylab("% vote over total reponse (including 'I don't know')") +
+  ylab("% vote over TOTAL reponse") +
   xlab("Across waves 1 ~ 13 (except 5)")
 ```
 
@@ -95,7 +97,7 @@ opinion_p %>%
   ggplot(aes(y = percent, x = wave,group = atti, colour = atti, shape = atti))+ 
   geom_line(size=0.8) + 
               geom_point(size=2, fill="white") +
-  ylab("% vote over total reponse (including 'I don't know')") +
+  ylab("% vote over TOTAL reponse") +
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
   scale_x_continuous(breaks=seq(1,13))+
   scale_colour_discrete(name="Votes",
@@ -107,8 +109,15 @@ opinion_p %>%
 ```
 
 
+
 #Series Two: Look at demographic subgroups 
 ## Step 1: create new dataset
+
+The original dataset is person-level. It looks like: 
+```{r, echo = FALSE}
+head(dat[,c(2,50,37:49,3:5,71:75)])
+```
+
 ```{r tidy = TRUE, echo = FALSE}
 demo_dat <- dat %>% select(id,country,ageW1,countryOfBirth)
 dat2 <- c()
@@ -147,12 +156,56 @@ ins_dat <- dat2 %>%
   inner_join(demo_dat)
 ```
 
+After manipulation, we get a wave-level data that looks like: 
+```{r}
+head(arrange(ins_dat, id)) 
+```
 
 ## Step 2: graphs 
 ### Country of origin 
 
 __Note: wierd drop in England origin__
+"For each demographic subgroup, how does the stay/leave opinion change over time?"
 ```{r tidy = TRUE, echo = FALSE}
+# number of responses for each subgroup in each wave
+
+dat_origin <- ins_dat %>%
+  group_by(wave, countryOfBirth, vote) %>%
+  summarise(group_vote = sum(wt, na.rm = TRUE)) %>%
+  filter(vote == "Leave the EU" | vote == "Stay/remain in the EU") %>%
+  spread(vote,group_vote) %>%
+  plyr::rename(c("Stay/remain in the EU" = "Stay",
+         "Leave the EU" = "Leave")) %>%
+  mutate(stay_leave_ratio = Stay/Leave)
+  
+## reordered the level
+dat_origin$countryOfBirth <- factor(dat_origin$countryOfBirth, levels = l2)
+
+
+## color
+color <- c("#b10026", "#fc4e2a", "#fd8d3c", "#969696",  "#252525","#238b45",
+           "#7570b3", "#e7298a", "#a6761d", "#d95f02")
+l2 <- c("Other: Commonwealth member country", 
+ "Other: European Union member country",
+ "Other: Rest of world",            
+ "Prefer not to answer",
+ NA,
+"Republic of Ireland",                
+ "Scotland",                        
+ "Wales",   
+"England",                           
+"Northern Ireland")
+
+dat_origin %>%
+  ggplot(aes(x = wave,y = stay_leave_ratio, group = countryOfBirth, colour = countryOfBirth)) + geom_point() + geom_line() +  ylab("Stay-leave ratio of the country of birth")+
+  xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
+  scale_x_continuous(breaks=seq(1,13)) #+   scale_colour_manual(values=color)
+
+
+```
+
+
+```{r}
 dat_leave <- ins_dat %>% 
   filter(vote == "Leave the EU") %>%
   select(-vote) %>%
@@ -205,6 +258,31 @@ dat_origin_p %>%
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
   scale_x_continuous(breaks=seq(1,13))
 ```
+
+### Examine people of English origin vote change
+```{r}
+#origin
+En_vote <- ins_dat %>%
+  filter(countryOfBirth == "England") %>%
+  group_by(wave, vote) %>%
+  summarise(wt_vote = sum(wt, na.rm = TRUE))
+
+En_vote %>%
+  ggplot(aes(x = wave, y = wt_vote, group = vote, color = vote)) +
+  geom_point() + geom_line()
+
+## international 
+In_vote <- ins_dat %>%
+  filter(countryOfBirth == "Other: Rest of world") %>%
+  group_by(wave, vote) %>%
+  summarise(wt_vote = sum(wt, na.rm = TRUE))
+
+In_vote %>%
+  ggplot(aes(x = wave, y = wt_vote, group = vote, color = vote)) +
+  geom_point() + geom_line()
+```
+
+
 
 
 ### Opinion divide within each group of country origin
