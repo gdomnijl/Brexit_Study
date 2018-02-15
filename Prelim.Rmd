@@ -30,9 +30,7 @@ dat <- read.csv("wt_age_origin.csv")
 #Note:
 \# of weights that said yes/ # of weights that said yes + said no 
 
-#TODO: 
-  * missing vote for wave 5 ??? => check original dataset 
-  * find wt_new_w10
+  
 #Series One:
 ## Collect general stay percent from each wave
 ```{r, echo = FALSE, warning=FALSE}
@@ -246,7 +244,7 @@ leave_tot <- dat_origin_p %>%
   geom_point() + 
   ylab("% of voters voted 'leave' of the country of birth")+
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
-  scale_x_continuous(breaks=seq(1,13))
+  scale_x_continuous(breaks=seq(1,13))+ theme(legend.position="none")
 
 stay_tot <- dat_origin_p %>%
   ggplot(aes(y = stay_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+
@@ -254,9 +252,9 @@ stay_tot <- dat_origin_p %>%
   geom_point() + 
   ylab("% of voters voted 'stay' of the country of birth")+
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
-  scale_x_continuous(breaks=seq(1,13)) + theme(legend.position="none")
+  scale_x_continuous(breaks=seq(1,13)) 
 
-grid.arrange(leave_tot, stay_tot, nrow = 1)
+#grid.arrange(leave_tot, stay_tot, nrow = 1)
 ```
 
 
@@ -308,7 +306,7 @@ In_vote %>%
  ins_dat %>%
   group_by(wave, countryOfBirth) %>%
   summarise(count = sum(wt, na.rm = TRUE)) %>%
-  ggplot(aes(x = wave, y = count, group = countryOfBirth, color = countryOfBirth)) + geom_point() + geom_line()
+  ggplot(aes(x = wave, y = count, group = countryOfBirth, color = countryOfBirth)) + geom_point() + geom_line() + ylab("Total response (weighted)") + ggtitle("Demographic change/check across survey waves")
 ```
 
 
@@ -355,8 +353,15 @@ grep("^euRefVoteW1$", colnames(dat)) #265
 ```
 
 
+## Next Goal  
+* Mark 3 critical events 
+* Continuous waves (1~13)
+** Determine the most continuous waves (balance sample size)
+* Other demographic 
 
-
+#TODO:  
+  * missing vote for wave 5 ??? => check original dataset 
+  * find wt_new_w10
 
 ```{r eval = TRUE}
 ## create a dataset that is wave specific 
