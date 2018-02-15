@@ -1,13 +1,17 @@
 ---
-title: "BriExit Survey Data Exploration"
+title: "BrExit Survey Data Exploration"
 output:
   html_document: default
   html_notebook: default
 ---
 ## Week 3 Report
-## Goal
-After first meeting, we will try the first approach:
+###Background:
 
+British Election study: 
+Examine the support of secessionist movements among first and secod generation immigrants. The data consists of answers to survey questions asked in different waves (total of 13), from 2014 - 2018. 
+
+## Goals of previous week: 
+###Succes 
 * Series 1. To visualize the general "opinion landscape" on leave/stay in the EU for each wave of survey. 
 * Series 2. Further investigate the difference between sub demographic groups:  
     + Age_group
@@ -18,6 +22,13 @@ After first meeting, we will try the first approach:
     + Political philosophy  
     + Conservative -> break from EU
     + Pro-labour -> stay in EU
+    
+###Sweet 
+* Create condensed data set to work with.
+* Figure out accumulative weight.
+
+###Amazing
+* Investigate the general "opinion landscape" on leave/stay in the EU for intersection of waves.
 
 
 ```{r, message = FALSE, warning= FALSE, echo=FALSE}
