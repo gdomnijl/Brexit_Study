@@ -10,6 +10,9 @@ output:
 British Election study: 
 Examine the support of secessionist movements among first and secod generation immigrants. The data consists of answers to survey questions asked in different waves (total of 13), from 2014 - 2018. 
 
+### Data source:
+
+[!]
 ## Goals of previous week: 
 ###Success 
 * Step 1. To visualize the general "opinion landscape" on leave/stay in the EU for each wave of survey. 
@@ -47,7 +50,7 @@ There are 13 waves of surveys, with ~3000 observations in each wave.
 Calculation of weights: \# of weights that said yes/ # of weights that said yes + said no 
 
 #Step One:
-## Collect general stay percent from each wave
+## Collect general stay/leave percent from each wave
 ```{r, echo = FALSE, warning=FALSE}
 stay_p <-c()
 leave_p <- c()
@@ -194,6 +197,11 @@ dat_origin <- ins_dat %>%
          "Leave the EU" = "Leave")) %>%
   mutate(stay_leave_ratio = Stay/Leave)
 
+
+## For An
+write.csv(dat_origin, "An_dataset.csv")
+
+
 ## color
 color <- c("#b10026", "#fc4e2a", "#fd8d3c", "#969696",  "#252525","#238b45",
            "#7570b3", "#e7298a", "#a6761d", "#d95f02")
@@ -222,7 +230,7 @@ dat_origin %>%
 
 ### Need further investigation: 
 __Note: wierd drop in England origin__
-```{r echo = FALSE}
+```{r echo = FALSE, message = FALSE}
 dat_leave <- ins_dat %>% 
   filter(vote == "Leave the EU") %>%
   select(-vote) %>%
@@ -254,24 +262,24 @@ dat_origin_p <- dat_leave_total %>%
          leave_p = leave/leave_total)
 
 
-leave_tot <- dat_origin_p %>%
+ dat_origin_p %>%
   ggplot(aes(y = leave_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+
   geom_line() + 
   geom_point() + 
   ylab("% of voters voted 'leave' of the country of birth")+
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
-  scale_x_continuous(breaks=seq(1,13))+ theme(legend.position="none")
+  scale_x_continuous(breaks=seq(1,13))+ theme(legend.position="none")+ coord_trans(y="log2")
 ```
 
 
 ```{r echo=FALSE}
-stay_tot <- dat_origin_p %>%
+ dat_origin_p %>%
   ggplot(aes(y = stay_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+
   geom_line() + 
   geom_point() + 
   ylab("% of voters voted 'stay' of the country of birth")+
   xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
-  scale_x_continuous(breaks=seq(1,13)) 
+  scale_x_continuous(breaks=seq(1,13)) + coord_trans(y="log2")
 
 #grid.arrange(leave_tot, stay_tot, nrow = 1)
 ```
@@ -287,10 +295,10 @@ En_vote <- ins_dat %>%
 
 En_vote %>%
   ggplot(aes(x = wave, y = wt_vote, group = vote, color = vote)) +
-  geom_point() + geom_line() + ggtitle("Country of Birth: 'England'")+ scale_x_continuous(breaks=seq(1,13))
+  geom_point() + geom_line() + ggtitle("Country of Birth: 'England'")+ scale_x_continuous(breaks=seq(1,13)) + ylab("Votes (weighted raw counts)")
 ```
 
-## Examine opinion change of people who don't want to reveal their country of origin
+### Examine opinion change of people who don't want to reveal their country of origin
 ```{r echo = FALSE}
 NA_vote <- ins_dat %>%
   filter(is.na(countryOfBirth)) %>%
@@ -303,7 +311,7 @@ NA_vote %>%
 ```
 
 
-## Examine opinion change of people who don't want to reveal their country of origin 
+## Examine opinion change of people who are from the rest of the world
 ```{r echo = FALSE}
 In_vote <- ins_dat %>%
   filter(countryOfBirth == "Other: Rest of world") %>%
@@ -316,12 +324,12 @@ In_vote %>%
 ```
 
 ### Look into total demographic change (country of origin)
-** Very wierd **
+** Very wierd ** 
 ```{r  echo = FALSE}
  ins_dat %>%
   group_by(wave, countryOfBirth) %>%
   summarise(count = sum(wt, na.rm = TRUE)) %>%
-  ggplot(aes(x = wave, y = count, group = countryOfBirth, color = countryOfBirth)) + geom_point() + geom_line() + ylab("Total response (weighted)") + ggtitle("Demographic change/check across survey waves")
+  ggplot(aes(x = wave, y = count, group = countryOfBirth, color = countryOfBirth)) + geom_point() + geom_line() + ylab("Total response (weighted)") + ggtitle("Demographic change/check across survey waves") + coord_trans(y="log2")
 ```
 
 
@@ -376,6 +384,8 @@ grep("^euRefVoteW1$", colnames(dat)) #265
 #TODO:  
   * missing vote for wave 5 ??? => check original dataset 
   * find wt_new_w10
+  * Log scale for 
+  * change in each wave
 
 ```{r eval = FALSE, echo = FALSE}
 ## create a dataset that is wave specific 
