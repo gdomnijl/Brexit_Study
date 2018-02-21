@@ -38,7 +38,7 @@ Examine the support of secessionist movements among first and secod generation i
 # Read in
 #library(readstata13)
 library(tidyverse)
-library(gridExtra)
+library(lubridate)
 dat <- read.csv("wt_age_origin.csv")
 ```
 
@@ -49,89 +49,11 @@ There are 13 waves of surveys, with ~3000 observations in each wave.
 ### Note:
 Calculation of weights: \# of weights that said yes/ # of weights that said yes + said no 
 
-#Step One:
-## Collect general stay/leave percent from each wave
-```{r, echo = FALSE, warning=FALSE}
-stay_p <-c()
-leave_p <- c()
-for(i in 1:13){
-  ## missing vote for wave 5 ??? => check original dataset 
-  ## find wt_new_w10
 
-  if(i!=5){
-  wave_name <- paste0("^wave",i,"$")
-  wave_col <- grep(wave_name, colnames(dat))
-  
-  vote_name <- paste0("^euRefVoteW",i,"$")
-  vote_col<-grep(vote_name,colnames(dat))
-  
-  if(i<=9){
-    wt_name <- paste0("wt_core_W",i)
-    wt_col <- grep(wt_name,colnames(dat))
-  }else if (i == 10){
-    wt_name <- paste0("wt_full_W",i)
-    wt_col <- grep(wt_name,colnames(dat))
-  }else{
-    wt_name <- paste0("wt_new_W",i)
-    wt_col <- grep(wt_name,colnames(dat))
-  }
-  wave <- dat %>%
-    filter(dat[,wave_col]==1) 
-  
-  wave_stay <- wave %>% 
-    filter(wave[,vote_col]=="Stay/remain in the EU")
-  wave_leave <- wave %>%
-    filter(wave[,vote_col]=="Leave the EU")
-  
-  total <- sum(wave[,wt_col], na.rm = TRUE)
-  stay <- sum(wave_stay[,wt_col], na.rm = TRUE)
-  leave <- sum(wave_leave[,wt_col], na.rm = TRUE)
-  
-  stay_p <- c(stay_p, stay/total)
-  leave_p <- c(leave_p, leave/total)
-  }
-}
-```
+## TODO: missing vote for wave 5 ??? => check original dataset 
+## TODO: find wt_new_w10
 
-```{r echo = FALSE}
-## plot wave 1 ~ 13 except wave 5
-wave <- c(1:4,6:13)
-opinion_p <- data.frame(wave,stay_p,leave_p)%>%
-  gather(atti, percent,-wave)
-```
-
-```{r eval = FALSE,echo = FALSE}
-### bar graph
-opinion_p %>% 
-  ggplot(aes(y = percent, x = wave,fill = atti))+ 
-  geom_bar(stat="identity",position=position_dodge()) +
-  ylab("% vote over TOTAL reponse") +
-  xlab("Across waves 1 ~ 13 (except 5)")
-```
-
-
-```{r echo = FALSE}
-### line graph
-
-opinion_p %>% 
-  ggplot(aes(y = percent, x = wave,group = atti, colour = atti, shape = atti))+ 
-  geom_line(size=0.8) + 
-              geom_point(size=2, fill="white") +
-  ylab("% vote over TOTAL reponse") +
-  xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
-  scale_x_continuous(breaks=seq(1,13))+
-  scale_colour_discrete(name="Votes",
-                      breaks=c("leave_p", "stay_p"),
-                      labels=c("Leave the EU", "Stay/remain in the EU"))+
-  scale_shape_discrete(name="Votes",
-                        breaks=c("leave_p", "stay_p"),
-                        labels=c("Leave the EU", "Stay/remain in the EU")) + ggtitle("General Opinion of BrExit Across Waves")
-```
-
-
-
-#Step Two: Look at demographic subgroups 
-## Step 2.1: create new dataset
+## Preparing Data: create new dataset
 
 The original dataset is person-level. It looks like: 
 ```{r, echo = FALSE}
@@ -181,7 +103,31 @@ After manipulation, we get a wave-level data that looks like:
 head(arrange(ins_dat, id)) 
 ```
 
-## Step 2.2: graphs 
+#Step One: Plot general trend on timeline (with actual date/time)
+```{r}
+ins_dat <-ins_dat %>% mutate(endtime = ifelse(wave == 1, "2014-03-09",  ifelse (wave == 2, "2014-06-25",
+                                    ifelse (wave == 3, "2014-10-17",
+                                        ifelse (wave == 4, "2015-03-30",
+                                            ifelse (wave == 5, "2015-05-06", 
+                                               ifelse (wave == 6, "2015-05-26",
+                                                  ifelse (wave == 7,"2016-05-4",
+                                                     ifelse (wave == 8, "2016-06-22",
+                                                       ifelse (wave == 9, "2016-07-04",
+                                                         ifelse (wave == 10, "2016-12-12",
+                                                             ifelse (wave == 11,"2017-05-03",
+                                                                ifelse (wave == 12,"2017-06-07",
+                                                                     "2017-06-23")))))))))))))
+
+ins_dat$endtime <- as.Date(ins_dat$endtime)
+
+ins_dat %>% group_by(endtime,vote)%>%
+  summarise(count = sum(wt,na.rm = TRUE)) %>%
+  ggplot(aes(x = endtime, y= count, group = vote, colour = vote))+geom_line() + geom_point() 
+```
+
+
+#Step Two: Look at demographic subgroups 
+
 ### Country of origin 
 
 "For each demographic subgroup, how does the stay/leave opinion change over time?"
@@ -196,11 +142,6 @@ dat_origin <- ins_dat %>%
   plyr::rename(c("Stay/remain in the EU" = "Stay",
          "Leave the EU" = "Leave")) %>%
   mutate(stay_leave_ratio = Stay/Leave)
-
-
-## For An
-write.csv(dat_origin, "An_dataset.csv")
-
 
 ## color
 color <- c("#b10026", "#fc4e2a", "#fd8d3c", "#969696",  "#252525","#238b45",
