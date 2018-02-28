@@ -3,19 +3,20 @@
 
 library(tidyverse)
 library(shiny)
-library(plotly)
+#library(plotly)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
-  factor_index <- reactive({grep(paste0("^",input$group_choice, "$"),colnames(ins_dat))})
+  factor_index <- reactive({grep(paste0("^",input$group_choice, "$"),colnames(plot_sub_group))})
    data <- reactive({
      if(input$dataset == "All Responses"){
-       print(factor_index())
        
-      p<-ins_dat %>% 
-        group_by(factor = ins_dat[,factor_index()],endtime,vote) %>%
+      p<-plot_sub_group %>% 
+        group_by(factor = plot_sub_group[,factor_index()],endtime,vote) %>%
         summarise(count = sum(wt, na.rm = TRUE))
-     } else if(input$dataset == "Continuous Responses (all 13 waves)"){
+     
+      } else if(input$dataset == "Continuous Responses (all 13 waves)"){
+    
       p<-dat_13 %>%
          group_by(factor = ins_dat[,factor_index()],endtime,vote) %>%
          summarise(count = sum(wt, na.rm = TRUE))
