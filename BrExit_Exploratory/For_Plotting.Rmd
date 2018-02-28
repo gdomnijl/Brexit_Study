@@ -1,0 +1,45 @@
+---
+title: "For_plotting"
+author: "Jinlin He"
+date: "2/28/2018"
+output: html_document
+---
+
+## Going back to the original dataset
+```{r}
+dat_789 <- read.csv("/Users/apple/Downloads/dat_wave_789.csv")
+```
+
+## Select demographic factors
+```{r tidy = TRUE, echo = FALSE}
+## note: only chose 'profile_euref1vote' as the the response.
+## TODO: where did gender, ageGroup,country,countryOfBirth, wt_full_W7W8W9 go, wave7, wave8, wave9?
+
+demog <- c("ageW8","country","countryOfBirth","gender","profile_work_typeW7", "^profile_newspaper$", "profile_household_size",  "profile_gross_personal", "^profile_gross_household$", "profile_eurefvote",  "profile_work_statW7", "^profile_house_tenure$", "wt_full_W7")
+
+demog_index <- c()
+for(i in 1:length(demog)){
+ demog_index <- c(demog_index, grep(demog[i], names(dat_789)))
+}
+## Dataset for plotting
+demog_789 <- dat_789[demog_index]
+
+plot_789_wave <- c() 
+for(i in 7:9){
+  wave_name <- paste0("^wave",i,"$")
+  wave_col <- grep(wave_name, colnames(dat_789))
+  
+  wave_i <- dat %>% 
+    filter(dat[,wave_col]==1) %>%
+    select(id, wt_col,vote_col, -wave_col) %>%
+    mutate(wave = i) 
+          #wt_full_W7W8W9
+  names(wave_i) <- sub("wt_full_W7", "wt", names(wave_i))
+
+  plot_789_wave <- rbind2(plot_789_wave,wave_i)
+  }
+}
+
+ins_dat <- dat2 %>% 
+  inner_join(demo_dat)
+```
