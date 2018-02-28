@@ -11,7 +11,7 @@ shinyUI(fluidPage(
   sidebarLayout(
     sidebarPanel(
       
-      selectInput("group_choice", "Breakdown by different demographic group", names(ins_dat)[4:7], selected = "countryOfBirth", multiple = FALSE,
+      selectInput("group_choice", "Breakdown by different demographic group", names(plot_sub_group)[5:15], selected = "countryOfBirth", multiple = FALSE,
                   selectize = TRUE, width = NULL, size = NULL),
       selectInput("dataset", "Sample Selection", c("All Responses", "Continuous Responses (all 13 waves)"), 
                   selected = "All Responses" )#"Continuous Responses (all 13 waves)")
