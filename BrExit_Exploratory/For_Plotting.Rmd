@@ -7,7 +7,12 @@ output: html_document
 
 ## Going back to the original dataset
 ```{r}
-dat_789 <- read.csv("/Users/apple/Downloads/dat_wave_789.csv")
+library(readstata13)
+library(tidyverse)
+library(labelled)
+dataset <- read.dta("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta")
+
+#dat_789 <- read.csv("/Users/apple/Downloads/dat_wave_789.csv")
 ```
 
 ## Select demographic factors
@@ -15,31 +20,74 @@ dat_789 <- read.csv("/Users/apple/Downloads/dat_wave_789.csv")
 ## note: only chose 'profile_euref1vote' as the the response.
 ## TODO: where did gender, ageGroup,country,countryOfBirth, wt_full_W7W8W9 go, wave7, wave8, wave9?
 
-demog <- c("ageW8","country","countryOfBirth","gender","profile_work_typeW7", "^profile_newspaper$", "profile_household_size",  "profile_gross_personal", "^profile_gross_household$", "profile_eurefvote",  "profile_work_statW7", "^profile_house_tenure$", "wt_full_W7")
+demog <- c("^ageGroup$","^country$","^countryOfBirth$","^gender$", "^profile_newspaper$", "^profile_household_size$",  "profile_gross_personal", "^profile_gross_household$", "^profile_work_typeW7$", "profile_eurefvote",  "profile_work_statW7", "^profile_house_tenure$", "^profile_ethnicity$")
 
 demog_index <- c()
 for(i in 1:length(demog)){
- demog_index <- c(demog_index, grep(demog[i], names(dat_789)))
+ demog_index <- c(demog_index, grep(demog[i], names(dataset)))
 }
-## Dataset for plotting
-demog_789 <- dat_789[demog_index]
 
-plot_789_wave <- c() 
-for(i in 7:9){
+demog_col <- dataset[,c(1,demog_index)]
+
+## Attach categorical level labels:
+for(i in 1: length(demog)){
+  demog_col[,i] <- to_factor(demog_col[,i])
+}
+
+
+```
+
+```{r }
+dat_plot <- c()
+
+for(i in 1:13){
+  if(i!= 5){
   wave_name <- paste0("^wave",i,"$")
-  wave_col <- grep(wave_name, colnames(dat_789))
+  wave_col <- grep(wave_name, colnames(dataset))
   
-  wave_i <- dat %>% 
-    filter(dat[,wave_col]==1) %>%
+  vote_name <- paste0("^euRefVoteW",i,"$")
+  vote_col<-grep(vote_name,colnames(dataset))
+  
+  if(i<=9){
+    wt_name <- paste0("^wt_core_W",i,"$")
+    wt_col <- grep(wt_name,colnames(dataset))
+  }else if (i == 10){
+    wt_name <- paste0("^wt_full_W",i,"$")
+    wt_col <- grep(wt_name,colnames(dataset))
+  }else{
+    wt_name <- paste0("^wt_new_W",i,"$")
+    wt_col <- grep(wt_name,colnames(dataset))
+  }
+  
+  wave_i <- dataset %>% 
+    filter(dataset[,wave_col]==1) %>%
     select(id, wt_col,vote_col, -wave_col) %>%
     mutate(wave = i) 
-          #wt_full_W7W8W9
-  names(wave_i) <- sub("wt_full_W7", "wt", names(wave_i))
-
-  plot_789_wave <- rbind2(plot_789_wave,wave_i)
+  
+  names(wave_i) <- sub(wt_name, "wt", names(wave_i))
+  names(wave_i) <- sub(vote_name, "vote", names(wave_i))
+  
+  dat_plot <- rbind2(dat_plot,wave_i)
   }
 }
 
-ins_dat <- dat2 %>% 
-  inner_join(demo_dat)
+plot_sub_group <- dat_plot %>% 
+  inner_join(demog_col)
+
+plot_sub_group$vote <- to_factor(plot_sub_group$vote)
+
+plot_sub_group<-plot_sub_group %>% mutate(endtime = ifelse(wave == 1, "2014-03-09",  ifelse (wave == 2, "2014-06-25",
+                                    ifelse (wave == 3, "2014-10-17",
+                                        ifelse (wave == 4, "2015-03-30",
+                                            ifelse (wave == 5, "2015-05-06", 
+                                               ifelse (wave == 6, "2015-05-26",
+                                                  ifelse (wave == 7,"2016-05-4",
+                                                     ifelse (wave == 8, "2016-06-22",
+                                                       ifelse (wave == 9, "2016-07-04",
+                                                         ifelse (wave == 10, "2016-12-12",
+                                                             ifelse (wave == 11,"2017-05-03",
+                                                                ifelse (wave == 12,"2017-06-07",
+                                                                     "2017-06-23")))))))))))))
+
+plot_sub_group$endtime <- as.Date(plot_sub_group$endtime)
 ```
