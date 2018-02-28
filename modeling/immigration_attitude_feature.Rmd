@@ -1,0 +1,86 @@
+---
+title: "Feb 27 (Tue): Feature Engineering on Immigration Attitude"
+output: html_notebook
+---
+
+# Step 1: import original data
+
+```{r}
+## 3:00 pm
+library(foreign)
+library(RStata)
+library(tidyverse)
+dataset <- read.dta("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta")
+
+```
+
+# Step 2: what are the variables and how many of them
+```{r}
+demog_index <- grep("profile_",names(dataset))
+pers_index <- grep("personality_",names(dataset))
+vote_index <- grep("euRef",names(dataset))
+immi_index <- grep("immig",names(dataset))
+
+demog_feature <- names(dataset)[demog_index]
+pers_feature <-names(dataset)[pers_index]
+vote_features <-names(dataset)[vote_index]
+immi_features <-names(dataset)[immi_index]
+```
+
+```{r}
+dat_789 <- dataset %>%
+  filter(wave7==1 & wave8 == 1 & wave9 ==1)
+
+write.csv(dat_789, "dat_wave_789.csv")
+```
+
+```{r}
+# condense dataset by removing the variables we are not looking at 
+remove <- c("competent", "authLong", "grammar", "LookAfter", "overseasAid","^W1","^W2","^W3","^W4","^W5","^W6","^W10","^W11","^W12","^W13")
+for(i in 1:length(remove)){
+ index <-grep(remove[i], names(dataset))
+ dat_789 <- dat_789 %>%
+   select(-index)
+}
+```
+
+
+Demographic:
+profile_marital_statW11
+profile_ethnicity
+profile_work_statW12
+profile_ethnicity
+gender
+profile_household_children
+housing
+profile_newspaper
+profile_gross_household
+profile_gross_personal
+ageGroup (10 yrs apart)
+Age
+"personality_agreeableness"     "personality_conscientiousness" "personality_extraversion"     
+"personality_neuroticism"       "personality_openness" 
+
+
+Political:
+al_scale
+lr_scale
+
+Referendum:
+postalTurnout
+euRefVoteW
+euSqueeze
+euRefVotePostW8 (Which way did you vote? W8)
+
+Immigration:
+immigSelf
+benefitsToMigrants
+(immigType)
+effectsEUImmigration
+
+Other:
+betterDealEU
+ukCooperatePref
+effectsEU2
+effectsEU3
+certaintyEUEffect
