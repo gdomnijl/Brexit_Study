@@ -12,7 +12,7 @@ Examine the support of secessionist movements among first and secod generation i
 
 ### Data source:
 
-[!]
+
 ## Goals of previous week: 
 ###Success 
 * Step 1. To visualize the general "opinion landscape" on leave/stay in the EU for each wave of survey. 
@@ -50,7 +50,7 @@ There are 13 waves of surveys, with ~3000 observations in each wave.
 Calculation of weights: \# of weights that said yes/ # of weights that said yes + said no 
 
 
-## TODO: missing vote for wave 5 ??? => check original dataset 
+## TODO: daily for wave 5 
 ## TODO: find wt_new_w10
 
 ## Preparing Data: create new dataset
@@ -62,7 +62,7 @@ head(dat[,c(2,50,37:49,3:5,71:75)])
 
 ```{r tidy = TRUE, echo = FALSE}
 demo_dat <- dat %>% select(id,country,ageW1,countryOfBirth)
-dat2 <- c()
+dat2 <- c() ## all responses
 for(i in 1:13){
   if(i!= 5){
   wave_name <- paste0("^wave",i,"$")
@@ -135,30 +135,35 @@ ins_dat %>% group_by(endtime,vote)%>%
 # number of responses for each subgroup in each wave
 
 dat_origin <- ins_dat %>%
-  group_by(wave, countryOfBirth, vote) %>%
+  ## re-categorize country of birth:
+  mutate(countryOfBirth_General = ifelse(countryOfBirth %in% c("England","Northern Ireland","Republic of Ireland", "Wales"), "UK", countryOfBirth)) %>% 
+  group_by(wave, countryOfBirth_General, vote) %>%
   summarise(group_vote = sum(wt, na.rm = TRUE)) %>%
   filter(vote == "Leave the EU" | vote == "Stay/remain in the EU") %>%
   spread(vote,group_vote) %>%
   plyr::rename(c("Stay/remain in the EU" = "Stay",
          "Leave the EU" = "Leave")) %>%
-  mutate(stay_leave_ratio = Stay/Leave)
+  mutate(stay_leave_ratio = Stay/Leave) %>%
+  ggplot(aes(x = wave,y = stay_leave_ratio, group = countryOfBirth_General, colour = countryOfBirth_General)) + geom_point() + geom_line() +  ylab("Stay-leave ratio of the country of birth")+
+  xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
+  scale_x_continuous(breaks=seq(1,13))
 
-## color
-color <- c("#b10026", "#fc4e2a", "#fd8d3c", "#969696",  "#252525","#238b45",
-           "#7570b3", "#e7298a", "#a6761d", "#d95f02")
-l2 <- c("Other: Commonwealth member country", 
- "Other: European Union member country",
- "Other: Rest of world",            
- "Prefer not to answer",
- NA,
-"Republic of Ireland",                
- "Scotland",                        
- "Wales",   
-"England",                           
-"Northern Ireland")
-
-## reordered the level
-dat_origin$countryOfBirth <- factor(dat_origin$countryOfBirth, levels = l2)
+# ## color
+# color <- c("#b10026", "#fc4e2a", "#fd8d3c", "#969696",  "#252525","#238b45",
+#            "#7570b3", "#e7298a", "#a6761d", "#d95f02")
+# l2 <- c("Other: Commonwealth member country", 
+#  "Other: European Union member country",
+#  "Other: Rest of world",            
+#  "Prefer not to answer",
+#  NA,
+# "Republic of Ireland",                
+#  "Scotland",                        
+#  "Wales",   
+# "England",                           
+# "Northern Ireland")
+# 
+# ## reordered the level
+# dat_origin$countryOfBirth <- factor(dat_origin$countryOfBirth, levels = l2)
 
 
 dat_origin %>%
@@ -356,4 +361,37 @@ t2 <- dat %>%
   unique()
 
 ```
+
+
+
+## Look at the sub-sample of people who are in all 13 waves
+```{r}
+all_13_id <- ins_dat %>% group_by(id) %>%
+  summarise(num_wave = n())%>%
+  filter(num_wave == 12) %>% ## SINCE wave 5 is ommited (So we have participants who just missed wave 5 too)
+  select(id)
+
+dat_13 <- ins_dat %>% ##65028 instances
+  right_join(all_13_id)
+
+# dat %>%
+#   filter(wave1 == 1 & wave2 == 1 & wave3 == 1 & wave4 == 1 & wave5 == 1 & 
+#            wave6 == 1 & wave7 == 1 & wave8 == 1 & wave9 == 1 & wave10 == 1&
+#            wave11 == 1 & wave12 == 1 & wave13 == 1) %>%
+#   group_by(wave, vote)
+
+
+#test
+ins_dat %>% 
+        group_by(country,endtime,vote) %>%
+        summarise(count = sum(wt, na.rm = TRUE)) %>%
+   filter(vote == "Leave the EU") %>%
+      ggplot(aes(x = endtime,
+                        y= count,
+                        group = country,
+                        color = country)) +
+      geom_line() + geom_point()
+```
+
+
 
