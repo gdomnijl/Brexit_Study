@@ -172,7 +172,7 @@ def make_graph(input_file = "all_13_waves_age_graph.csv", sub_groups_arr = ['66+
 
 #filter_for_columns(input_file=None, break_down_var=None)
 
-break_down_var = "profile_gross_household"
+break_down_var = "lr_scale"
 
 filter_for_columns(input_file ="all_waves.csv", begin_wave=1, end_wave=13, wanted_columns=[break_down_var], output_file=break_down_var + ".csv" )
 

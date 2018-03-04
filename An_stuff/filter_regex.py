@@ -8,7 +8,7 @@ def filter_for_columns(input_file="all_waves.csv", begin_wave=1, end_wave=13, wa
 
     df = pd.read_csv(input_file, index_col="id")
 
-    immigration_cols = [col for col in df.columns if 'immigration' in col.lower() or 'migration' in col.lower() or 'migra' in col.lower() or 'immi' in col.lower()]
+    immigration_cols = [col for col in df.columns if 'immigration' in col.lower() or 'migration' in col.lower() or 'migra' in col.lower() or 'immi' in col.lower() or 'imm' in col.lower()]
 
     needed_columns_names = ["wt_new_W1_W13"] + wanted_columns + immigration_cols
 
