@@ -1,6 +1,6 @@
 library(tidyverse)
 ## getting the columns: id, wave, euRefVote
-dat <-read.csv("/Users/apple/Desktop/DAT/BriExit/data/wt_age_origin.csv")
+dat <-read.csv("data/wt_age_origin.csv")
 col_wave <- grep("^wave\\d+",names(dat))
 col_vote <- grep("^euRefVoteW\\d+",names(dat))
 
@@ -21,7 +21,8 @@ for(i in 1:13){
     
     wave_i <- opinion_dat %>% 
       mutate(wave = i) %>%
-      select(id, wave,vote_col, wave_col)
+      mutate(voted = ifelse(is.na(opinion_dat[,vote_col]), 0, 1)) %>%
+      select(id, wave,vote_col, wave_col,voted)
     
     names(wave_i) <- sub(wave_name, "present", names(wave_i))
     names(wave_i) <- sub(vote_name, "vote", names(wave_i))
@@ -33,6 +34,7 @@ for(i in 1:13){
     wave_i <- opinion_dat %>%
       select(id,wave_col) %>%
       mutate(vote = NA,
+             voted = NA,
              wave = 5)
     names(wave_i) <- sub(wave_name, "present", names(wave_i))
   }
@@ -81,15 +83,16 @@ temp_full <- temp %>%
                          ifelse(full_vote!=pre_vote, 1, 0))) 
 
 switch_dat <- temp_full %>%
-  summarise(num_wave_present = sum(present),
+  summarise(num_wave_voted = sum(voted,na.rm = TRUE),
             num_switch = sum(switch,na.rm = TRUE)) %>% 
-  mutate(switch_ratio = num_switch/num_wave_present,
+  mutate(switch_ratio = ifelse(num_wave_voted == 0, 0, num_switch/num_wave_voted),
          ifswitch = ifelse(num_switch>0, 1,0))
+
+switch_dat$ifswitch <- as.factor(switch_dat$ifswitch)
 
 write.csv(switch_dat, "opinion_switch.csv")
 
-sapply(opinion_dat,count_switch)
-num_switch <- c()
+
 
 count_switch <- function(row){
   index <- grep("^euRefVoteW\\d+", names(opinion_dat))
