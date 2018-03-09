@@ -1,6 +1,84 @@
-## Building dataset with opinion switch columns
 
 library(tidyverse)
+library(readstata13)
+
+
+dataset <- read.dta13("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta") 
+#------------------------------------------------------------------
+### SMALL PIECES HERE AND THERE
+## remove seemingly irrelevant factors
+de <- c("competent", "authLong", "grammar", "LookAfter", "overseasAid","^W1","^W2","^W3","^W4","^W5","^W6","^W10","^W11","^W12","^W13")
+for(i in 1:length(remove)){
+  index <-grep(remove[i], names(dataset))
+  dat_789 <- dat_789 %>%
+    select(-index)
+}
+
+## opinion columns
+opinion_index <- grep("euRefVoteW",colnames(dataset))
+opinion <- dataset()
+
+
+## wave1 - wave13, id, eurefvote_i, weight_
+
+## Reduce to a condensed dataset
+condensed <- dat[,c(1:67,72,75,index)]
+write.csv(condensed, "wt_age_origin.csv")
+
+index <-c()
+for(i in 1:13){
+  reg <- paste0("^euRefVoteW",i,"$")
+  col_num<-grep(reg,colnames(dat))
+  index <- c(index, col_num)
+}
+
+grep("^euRefVoteW1$", colnames(dat)) #265
+
+#------------------------------------------------------------------
+### Make the dataset VERTICAL (WAVE-SPECIFIC)
+## Collect general stay percent from each wave
+stay_p <-c()
+for(i in 1:4){
+  wave_name <- paste0("^wave",i,"$")
+  wave_col <- grep(wave_name, colnames(condensed))
+  
+  vote_name <- paste0("^euRefVoteW",i,"$")
+  vote_col<-grep(vote_name,colnames(condensed))
+  
+  wt_name <- paste0("wt_core_W",i)
+  wt_col <- grep(wt_name,colnames(condensed))
+  
+  wave <- condensed %>%
+    filter(condensed[,wave_col]==1) 
+  
+  wave_stay <- wave %>% 
+    filter(wave[,vote_col]=="Stay/remain in the EU")
+  
+  total <- sum(wave[,wt_col], na.rm = TRUE)
+  stay <- sum(wave_stay[,wt_col], na.rm = TRUE)
+  stay_p <- c(stay_p, stay/total)
+}
+
+
+
+#------------------------------------------------------------------
+### Select STATIC FACTORS
+## filter out variable names with 'Wi' or 'wi'
+wave_spec_index <- c(grep("W\\d+", colnames(dataset)), grep("w\\d+",colnames(dataset)))
+wave_index <- grep("^wave\\d+",colnames(dataset)) # remove'wave1:wave13'
+
+## dataset that contains factors that were asked only once (static)
+static_factors <- dataset %>%
+  select(-wave_spec_index,-wave_index) %>%## 52 of them
+  select(-profile_lea, -profile_oslaua, -profile_socialgrade_cie,-euRefLA,-onscode)
+# contain both age and age_group at this point
+
+write.csv(static_factors,"dataset_static_factors.csv")
+
+
+#------------------------------------------------------------------
+### Compute SWITCHES
+## Building dataset with opinion switch columns
 
 ## getting the columns: id, wave, euRefVote
 dat <-read.csv("data/wt_age_origin.csv")
