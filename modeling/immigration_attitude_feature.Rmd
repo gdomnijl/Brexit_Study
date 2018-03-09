@@ -47,16 +47,16 @@ for(i in 1:length(remove)){
 
 Demographic:
 profile_marital_statW11
-profile_ethnicity (only after wave 10)
-profile_work_statW12
+*profile_ethnicity (only after wave 10)
+*profile_work_statW12
 gender
 profile_household_children
 housing
 profile_newspaper
-profile_gross_household
+*profile_gross_household
 profile_gross_personal
-ageGroup (10 yrs apart)
-Age
+*ageGroup (10 yrs apart)
+*Age
 
 "personality_agreeableness"     "personality_conscientiousness" "personality_extraversion"     
 "personality_neuroticism"       "personality_openness" 
