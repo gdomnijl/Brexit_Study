@@ -3,6 +3,9 @@ library(tidyverse)
 library(caret)
 library(glmnet)
 library(Amelia)
+
+# ------------------------------------------------------------------------------------------
+
 jinlin_dat <- read.csv("opinion_switch.csv")
 an_dat <- read.csv("data/switches_calculated.csv")
 
@@ -43,27 +46,25 @@ write.csv(test_dat_ifswitch, "data/test_ifswitch.csv")
 
 ## Modeling:
 factor<-read.csv("data/dataset_static_factors.csv") 
-wave_index<-grep("^wave\\d+$",names(factor))
 factor <- factor %>% 
-     select(-euRefLA, -onscode,-ageGroup,-X.1,-X,-num_wave_present,
-            -num_switch,-switch_ratio,-ifswitch, -wave_index,
-            -fatherNumEmployees,-motherNumEmployees, 
-            -profile_socialgrade_cie,-profile_lea,-profile_oslaua)
+      # Note: removed ageGroup, mother/fatherNumEmployees(LOTS OF NAs & they are continuous)
+      # 31 factors other than id
+     select(-ageGroup,-X, -motherNumEmployees, -fatherNumEmployees)
 ## on switch ratio:
 train_ratio <- read.csv("data/training_switch_ratio.csv") %>% 
   select(id,switch_ratio) %>%
   inner_join(factor)
 
-## change to factor 
-for(i in 1:length(names(train_ratio))){
-  if(!(names(train_ratio)[i] %in% c("switch_ratio","Age",
-                                "profile_household_children", 
-                                "profile_gross_personal",
-                                "profile_gross_household",
-                                "profile_educaiton_age"))){
-      train_ratio[,i] <- as.factor(train_ratio[,i])
-  }
-}
+## change to factor (new dataset already in good shape)
+# for(i in 1:length(names(train_ratio))){
+#   if(!(names(train_ratio)[i] %in% c("switch_ratio","Age",
+#                                 "profile_household_children", 
+#                                 "profile_gross_personal",
+#                                 "profile_gross_household",
+#                                 "profile_educaiton_age"))){
+#       train_ratio[,i] <- as.factor(train_ratio[,i])
+#   }
+# }
   
 
 ## LASSO:

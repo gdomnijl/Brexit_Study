@@ -73,7 +73,11 @@ static_factors <- dataset %>%
   select(-profile_lea, -profile_oslaua, -profile_socialgrade_cie,-euRefLA,-onscode)
 # contain both age and age_group at this point
 
-write.csv(static_factors,"dataset_static_factors.csv")
+
+## TODO1:
+
+
+write.csv(static_factors,"data/dataset_static_factors.csv")
 
 
 #------------------------------------------------------------------
