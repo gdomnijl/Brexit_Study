@@ -1,0 +1,397 @@
+---
+title: "BrExit Survey Data Exploration"
+output:
+  html_document: default
+  html_notebook: default
+---
+## Week 3 Report
+###Background:
+
+British Election study: 
+Examine the support of secessionist movements among first and secod generation immigrants. The data consists of answers to survey questions asked in different waves (total of 13), from 2014 - 2018. 
+
+### Data source:
+
+
+## Goals of previous week: 
+###Success 
+* Step 1. To visualize the general "opinion landscape" on leave/stay in the EU for each wave of survey. 
+* Step 2. Further investigate the difference between sub demographic groups:  
+    + Age_group
+    + Education
+    + Social Economic Status (?)
+    + Urban rural
+    + Party ID
+    + Political philosophy  
+    + Conservative -> break from EU
+    + Pro-labour -> stay in EU
+    
+###Sweet 
+* Create condensed data set to work with.
+* Figure out accumulative weight.
+
+###Amazing
+* Investigate the general "opinion landscape" on leave/stay in the EU for intersection of waves.
+
+
+```{r, message = FALSE, warning= FALSE, echo=FALSE}
+# Read in
+#library(readstata13)
+library(tidyverse)
+library(lubridate)
+dat <- read.csv("wt_age_origin.csv")
+```
+
+### Data Background:
+Original dataset has > 5000 variables, 68625 observations.
+There are 13 waves of surveys, with ~3000 observations in each wave.
+
+### Note:
+Calculation of weights: \# of weights that said yes/ # of weights that said yes + said no 
+
+
+## TODO: daily for wave 5 
+## TODO: find wt_new_w10
+
+## Preparing Data: create new dataset
+
+The original dataset is person-level. It looks like: 
+```{r, echo = FALSE}
+head(dat[,c(2,50,37:49,3:5,71:75)])
+```
+
+```{r tidy = TRUE, echo = FALSE}
+demo_dat <- dat %>% select(id,country,ageW1,countryOfBirth)
+dat2 <- c() ## all responses
+for(i in 1:13){
+  if(i!= 5){
+  wave_name <- paste0("^wave",i,"$")
+  wave_col <- grep(wave_name, colnames(dat))
+  
+  vote_name <- paste0("^euRefVoteW",i,"$")
+  vote_col<-grep(vote_name,colnames(dat))
+  
+  if(i<=9){
+    wt_name <- paste0("^wt_core_W",i,"$")
+    wt_col <- grep(wt_name,colnames(dat))
+  }else if (i == 10){
+    wt_name <- paste0("^wt_full_W",i,"$")
+    wt_col <- grep(wt_name,colnames(dat))
+  }else{
+    wt_name <- paste0("^wt_new_W",i,"$")
+    wt_col <- grep(wt_name,colnames(dat))
+  }
+  
+  wave_i <- dat %>% 
+    filter(dat[,wave_col]==1) %>%
+    select(id, wt_col,vote_col, -wave_col) %>%
+    mutate(wave = i) 
+  
+  names(wave_i) <- sub(wt_name, "wt", names(wave_i))
+  names(wave_i) <- sub(vote_name, "vote", names(wave_i))
+  
+  dat2 <- rbind2(dat2,wave_i)
+  }
+}
+
+ins_dat <- dat2 %>% 
+  inner_join(demo_dat)
+```
+
+After manipulation, we get a wave-level data that looks like: 
+```{r, echo = FALSE}
+head(arrange(ins_dat, id)) 
+```
+
+#Step One: Plot general trend on timeline (with actual date/time)
+```{r}
+ins_dat <-ins_dat %>% mutate(endtime = ifelse(wave == 1, "2014-03-09",  ifelse (wave == 2, "2014-06-25",
+                                    ifelse (wave == 3, "2014-10-17",
+                                        ifelse (wave == 4, "2015-03-30",
+                                            ifelse (wave == 5, "2015-05-06", 
+                                               ifelse (wave == 6, "2015-05-26",
+                                                  ifelse (wave == 7,"2016-05-4",
+                                                     ifelse (wave == 8, "2016-06-22",
+                                                       ifelse (wave == 9, "2016-07-04",
+                                                         ifelse (wave == 10, "2016-12-12",
+                                                             ifelse (wave == 11,"2017-05-03",
+                                                                ifelse (wave == 12,"2017-06-07",
+                                                                     "2017-06-23")))))))))))))
+
+ins_dat$endtime <- as.Date(ins_dat$endtime)
+
+ins_dat %>% group_by(endtime,vote)%>%
+  summarise(count = sum(wt,na.rm = TRUE)) %>%
+  ggplot(aes(x = endtime, y= count, group = vote, colour = vote))+geom_line() + geom_point() 
+```
+
+
+#Step Two: Look at demographic subgroups 
+
+### Country of origin 
+
+"For each demographic subgroup, how does the stay/leave opinion change over time?"
+```{r tidy = TRUE, echo = FALSE, message=FALSE}
+# number of responses for each subgroup in each wave
+
+dat_origin <- ins_dat %>%
+  ## re-categorize country of birth:
+  mutate(countryOfBirth_General = ifelse(countryOfBirth %in% c("England","Northern Ireland","Republic of Ireland", "Wales"), "UK", countryOfBirth)) %>% 
+  group_by(wave, countryOfBirth_General, vote) %>%
+  summarise(group_vote = sum(wt, na.rm = TRUE)) %>%
+  filter(vote == "Leave the EU" | vote == "Stay/remain in the EU") %>%
+  spread(vote,group_vote) %>%
+  plyr::rename(c("Stay/remain in the EU" = "Stay",
+         "Leave the EU" = "Leave")) %>%
+  mutate(stay_leave_ratio = Stay/Leave) %>%
+  ggplot(aes(x = wave,y = stay_leave_ratio, group = countryOfBirth_General, colour = countryOfBirth_General)) + geom_point() + geom_line() +  ylab("Stay-leave ratio of the country of birth")+
+  xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
+  scale_x_continuous(breaks=seq(1,13))
+
+# ## color
+# color <- c("#b10026", "#fc4e2a", "#fd8d3c", "#969696",  "#252525","#238b45",
+#            "#7570b3", "#e7298a", "#a6761d", "#d95f02")
+# l2 <- c("Other: Commonwealth member country", 
+#  "Other: European Union member country",
+#  "Other: Rest of world",            
+#  "Prefer not to answer",
+#  NA,
+# "Republic of Ireland",                
+#  "Scotland",                        
+#  "Wales",   
+# "England",                           
+# "Northern Ireland")
+# 
+# ## reordered the level
+# dat_origin$countryOfBirth <- factor(dat_origin$countryOfBirth, levels = l2)
+
+
+dat_origin %>%
+  ggplot(aes(x = wave,y = stay_leave_ratio, group = countryOfBirth, colour = countryOfBirth)) + geom_point() + geom_line() +  ylab("Stay-leave ratio of the country of birth")+
+  xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
+  scale_x_continuous(breaks=seq(1,13)) #+   scale_colour_manual(values=color)
+
+
+```
+
+### Need further investigation: 
+__Note: wierd drop in England origin__
+```{r echo = FALSE, message = FALSE}
+dat_leave <- ins_dat %>% 
+  filter(vote == "Leave the EU") %>%
+  select(-vote) %>%
+  group_by(wave,countryOfBirth) %>%
+  summarise(leave = sum(wt, na.rm = TRUE))
+  
+dat_stay <- ins_dat %>% 
+  filter(vote == "Stay/remain in the EU") %>%
+  select(-vote)%>%
+  group_by(wave,countryOfBirth) %>%
+  summarise(stay = sum(wt, na.rm = TRUE))
+
+## Note: the % is over all 'Leave' voters in that wave 
+dat_leave_total <- ins_dat %>%
+  filter(vote == "Leave the EU") %>%
+  group_by(wave) %>%
+  summarise(leave_total = sum(wt, na.rm = TRUE))
+
+dat_stay_total <- ins_dat %>%
+  filter(vote == "Stay/remain in the EU") %>%
+  group_by(wave) %>%
+  summarise(stay_total = sum(wt, na.rm = TRUE))
+
+dat_origin_p <- dat_leave_total %>%
+  inner_join(dat_leave) %>%
+  inner_join(dat_stay) %>%
+  inner_join(dat_stay_total) %>%
+  mutate(stay_p = stay/stay_total,
+         leave_p = leave/leave_total)
+
+
+ dat_origin_p %>%
+  ggplot(aes(y = leave_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+
+  geom_line() + 
+  geom_point() + 
+  ylab("% of voters voted 'leave' of the country of birth")+
+  xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
+  scale_x_continuous(breaks=seq(1,13))+ theme(legend.position="none")+ coord_trans(y="log2")
+```
+
+
+```{r echo=FALSE}
+ dat_origin_p %>%
+  ggplot(aes(y = stay_p, x = wave, group = countryOfBirth, colour = countryOfBirth))+
+  geom_line() + 
+  geom_point() + 
+  ylab("% of voters voted 'stay' of the country of birth")+
+  xlab("Across waves 1 ~ 13 (EXCEPT WAVE 5)") + 
+  scale_x_continuous(breaks=seq(1,13)) + coord_trans(y="log2")
+
+#grid.arrange(leave_tot, stay_tot, nrow = 1)
+```
+
+
+### Examine opinion change of people with English origin 
+```{r echo = FALSE}
+#origin
+En_vote <- ins_dat %>%
+  filter(countryOfBirth == "England") %>%
+  group_by(wave, vote) %>%
+  summarise(wt_vote = sum(wt, na.rm = TRUE))
+
+En_vote %>%
+  ggplot(aes(x = wave, y = wt_vote, group = vote, color = vote)) +
+  geom_point() + geom_line() + ggtitle("Country of Birth: 'England'")+ scale_x_continuous(breaks=seq(1,13)) + ylab("Votes (weighted raw counts)")
+```
+
+### Examine opinion change of people who don't want to reveal their country of origin
+```{r echo = FALSE}
+NA_vote <- ins_dat %>%
+  filter(is.na(countryOfBirth)) %>%
+  group_by(wave, vote) %>%
+  summarise(wt_vote = sum(wt, na.rm = TRUE))
+
+NA_vote %>%
+  ggplot(aes(x = wave, y = wt_vote, group = vote, color = vote)) +
+  geom_point() + geom_line() + scale_x_continuous(breaks=seq(1,13)) +ylab("Votes (weighted raw counts)") + ggtitle("Country of Birth: 'Prefer not to answer'")
+```
+
+
+## Examine opinion change of people who are from the rest of the world
+```{r echo = FALSE}
+In_vote <- ins_dat %>%
+  filter(countryOfBirth == "Other: Rest of world") %>%
+  group_by(wave, vote) %>%
+  summarise(wt_vote = sum(wt, na.rm = TRUE))
+
+In_vote %>%
+  ggplot(aes(x = wave, y = wt_vote, group = vote, color = vote)) +
+  geom_point() + geom_line() + ggtitle("Country of Birth: 'Rest of the world'") + scale_x_continuous(breaks=seq(1,13))
+```
+
+### Look into total demographic change (country of origin)
+** Very wierd ** 
+```{r  echo = FALSE}
+ ins_dat %>%
+  group_by(wave, countryOfBirth) %>%
+  summarise(count = sum(wt, na.rm = TRUE)) %>%
+  ggplot(aes(x = wave, y = count, group = countryOfBirth, color = countryOfBirth)) + geom_point() + geom_line() + ylab("Total response (weighted)") + ggtitle("Demographic change/check across survey waves") + coord_trans(y="log2")
+```
+
+
+### Next time: 
+### Opinion divide within each group of country origin
+```{r eval = FALSE, echo = FALSE}
+dat_total <- ins_dat %>%
+  group_by(wave, vote) %>%
+  summarize(each_origin_total = sum(wt,na.rm=TRUE))%>%
+  spread(vote,each_origin_total)
+
+dat_ <- ins_dat %>% 
+  group_by(wave,countryOfBirth,vote) %>%
+  summarise(count = sum(wt, na.rm = TRUE))%>%
+  inner_join(dat_total) %>%
+  mutate(stay_p = stay/count,
+         leave_p = leave/count) %>%
+  gather(atti, percent, -countryOfBirth, -wave,-vote,)
+```
+
+```{r eval = FALSE, echo = FALSE}
+  ggplot(aes(y = percent, x = wave,fill = atti))+ 
+  geom_bar(stat="identity",position=position_dodge()) +
+  ylab("% vote over total reponse (including 'I don't know')") +
+  xlab("Across waves 1 ~ 13 (except 5)")
+```
+
+
+```{r eval = FALSE, echo = FALSE}
+
+## Reduce to a condensed dataset (used code)
+condensed <- dat[,c(1:67,72,75,index)]
+write.csv(condensed, "wt_age_origin.csv")
+
+index <-c()
+for(i in 1:13){
+  reg <- paste0("^euRefVoteW",i,"$")
+  col_num<-grep(reg,colnames(dat))
+  index <- c(index, col_num)
+}
+
+grep("^euRefVoteW1$", colnames(dat)) #265
+```
+
+
+## Next Goal  
+* Mark 3 critical events 
+* Continuous waves (1~13)
+** Determine the most continuous waves (balance sample size)
+* Other demographic groups
+
+#TODO:  
+  * missing vote for wave 5 ??? => check original dataset 
+  * find wt_new_w10
+  * Log scale for 
+  * change in each wave
+
+```{r eval = FALSE, echo = FALSE}
+## create a dataset that is wave specific 
+for(i in 1: 13){
+  #wave_num <- paste0("wave",i);
+  dat %>% filter(wave1 == 1, euRefVoteW1== "Stay/remain in the EU") %>% 
+    summarise(stay = sum(wt_core_W1, na.rm = TRUE))
+  
+  dat %>% filter(wave1 == 1) %>% summarise(total = sum(wt_core_W1, na.rm = TRUE))
+  
+  dat %>% group_by()
+}
+
+t <- dat %>%
+  filter(wave1==1) %>%
+  group_by(euRefVoteW1) %>%
+  summarise(opinion_count = sum(wt_core_W1, na.rm = TRUE))
+  
+  
+t2 <- dat %>%  
+  filter(wave1==1) %>%
+  inner_join(t) %>%
+  mutate(total_count = sum(wt_core_W1, na.rm = TRUE))%>%
+  mutate(stay_p = opinion_count/total_count) %>%
+  filter(euRefVoteW1 == "Stay/remain in the EU") %>%
+  select(stay_p) %>%
+  unique()
+
+```
+
+
+
+## Look at the sub-sample of people who are in all 13 waves
+```{r}
+all_13_id <- ins_dat %>% group_by(id) %>%
+  summarise(num_wave = n())%>%
+  filter(num_wave == 12) %>% ## SINCE wave 5 is ommited (So we have participants who just missed wave 5 too)
+  select(id)
+
+dat_13 <- ins_dat %>% ##65028 instances
+  right_join(all_13_id)
+
+# dat %>%
+#   filter(wave1 == 1 & wave2 == 1 & wave3 == 1 & wave4 == 1 & wave5 == 1 & 
+#            wave6 == 1 & wave7 == 1 & wave8 == 1 & wave9 == 1 & wave10 == 1&
+#            wave11 == 1 & wave12 == 1 & wave13 == 1) %>%
+#   group_by(wave, vote)
+
+
+#test
+ins_dat %>% 
+        group_by(country,endtime,vote) %>%
+        summarise(count = sum(wt, na.rm = TRUE)) %>%
+   filter(vote == "Leave the EU") %>%
+      ggplot(aes(x = endtime,
+                        y= count,
+                        group = country,
+                        color = country)) +
+      geom_line() + geom_point()
+```
+
+
+
