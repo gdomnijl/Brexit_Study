@@ -6,8 +6,8 @@ library(Amelia)
 
 # ------------------------------------------------------------------------------------------
 
-jinlin_dat <- read.csv("opinion_switch.csv")
-an_dat <- read.csv("data/switches_calculated.csv")
+jinlin_dat <- read.csv("./data/opinion_switch.csv")
+an_dat <- read.csv("./data/switches_calculated.csv")
 
 jinlin_dat$switch_ratio <- plyr::round_any(jinlin_dat$switch_ratio,0.0001, f = round)
 an_dat$proportion_switches <- plyr::round_any(an_dat$proportion_switches,0.0001, f = round)
@@ -45,51 +45,66 @@ write.csv(test_dat_ifswitch, "data/test_ifswitch.csv")
 #missmap(train_ratio)
 
 ## Modeling:
-factor<-read.csv("data/dataset_static_factors.csv") 
-factor <- factor %>% 
-      # Note: removed ageGroup, mother/fatherNumEmployees(LOTS OF NAs & they are continuous)
+factor<-read.csv("./data/dataset_static_factors.csv") %>% 
+      # Note: removed Age; Reason: set NA to 0 to other levels, so use factor(AgeGroup) instead of continuous (Age) 
+      # Note: remove mother/fatherNumEmployees(LOTS OF NAs & they are continuous)
       # 31 factors other than id
-     select(-ageGroup,-X, -motherNumEmployees, -fatherNumEmployees)
+     select(-Age,-X, -motherNumEmployees, -fatherNumEmployees) 
+
+factor$headHouseholdPast<-plyr::revalue(as.factor(factor$headHouseholdPast), 
+                                        c("1"="My father", "2"="My mother", 
+                                          "3" = "Someone else",
+                                          "4" = "No one in my house worked",
+                                          "9999" = "Don't know"))
+# ------------------------------------------------------------------------------------------
+
 ## on switch ratio:
-train_ratio <- read.csv("data/training_switch_ratio.csv") %>% 
+train_ratio <- read.csv("./data/training_switch_ratio.csv") %>% 
   select(id,switch_ratio) %>%
   inner_join(factor)
-
-## change to factor (new dataset already in good shape)
-# for(i in 1:length(names(train_ratio))){
-#   if(!(names(train_ratio)[i] %in% c("switch_ratio","Age",
-#                                 "profile_household_children", 
-#                                 "profile_gross_personal",
-#                                 "profile_gross_household",
-#                                 "profile_educaiton_age"))){
-#       train_ratio[,i] <- as.factor(train_ratio[,i])
-#   }
-# }
   
-
-## LASSO:
-f <- reformulate(response=NULL, termlabels=names(train_ratio)[-1],intercept =FALSE)
-options(na.action='na.pass')
-train_ratio_factor <- model.matrix(f, train_ratio)  ## CHECK: DID IT JUST ELIMINATE ANY NA???
 ## TODO: Need to deal with NAs
-##  only left with 9043 without NAs
-## DECISION: Replaced all NAs with 0s
-train_ratio_factor[is.na(train_ratio_factor)] <- 0
+## only left with 9043 without NAs
+## PREVIOUS DECISION: Replaced all NAs with 0s 
+      #train_ratio_factor[is.na(train_ratio_factor)] <- 0
+## WRONG because all 0's can mean both: the default factor level or NA
+## CURRENT DECISION: Turn NA into a new factor level:
+for(i in 3:length(names(train_ratio))){
+  if(class(train_ratio[,i]) == "factor"){
+    train_ratio[,i]<-addNA(train_ratio[,i])
+  }else{
+    train_ratio[,i] <- as.factor(train_ratio[,i])
+    train_ratio[,i]<-addNA(train_ratio[,i])
+  }
+}
 
-fit <- glmnet(x = train_ratio_factor[,-1], y = train_ratio_factor[,1],
-              alpha = 1, nlambda = 10, standardize = TRUE)
-plot(fit, xvar = "lambda", label = TRUE)
-plot(fit, xvar = "dev", label = TRUE)
-coef(fit, s = 0.001)
 
+## TODO: intercept?
+f <- reformulate(response = NULL, termlabels=names(train_ratio)[-c(1)], intercept = FALSE)
+options(na.action='na.pass')
+train_ratio_factor <- model.matrix(f, train_ratio) 
+## 51470 points, 289 factor-levels with NA levels (not including default levels)
+## but including default level for first variable in place of intercept QUESTION
 
-ridge <- glmnet(x = train_ratio_factor[,-1], y = train_ratio_factor[,1],
+lasso_ratio <- cv.glmnet(x = train_ratio_factor[,-1], y = train_ratio_factor[,1],
+              alpha = 1, nlambda = 10, standardize = TRUE, type.measure = "mse")
+## 10-fold default
+#plot(lasso_ratio, xvar = "lambda", label = TRUE)
+#plot(lasso_ratio, xvar = "mse", label = TRUE)
+
+## MSE vs lambda
+plot.cv.glmnet(lasso_ratio)
+coef<- coef(lasso_ratio, s = 8.889531e-03)
+non_zero_fact <- coef@i[-1]
+non_zero_coef <- coef@x[-1]
+lasso_ratio_factors <- as.data.frame(cbind2(c("intercept",colnames(train_ratio_factor)[non_zero_fact]), ## here it is lining up just nicely
+                             c(coef@x[1],non_zero_coef)))
+write.csv(lasso_ratio_factors, "21_lasso_factors_ratio.csv")
+
+## TODO: is there a way to find the 'best' alpha range
+ridge_ratio <- glmnet(x = train_ratio_factor[,-1], y = train_ratio_factor[,1],
               alpha = 0, nlambda = 10, standardize = TRUE)
-
-# NOTES:
-# Df (the number of nonzero coefficients), 
-# %dev (the percent deviance explained) and 
-# Lambda (the corresponding value of λ).
+elastic_ratio <- 
 
 #----------------------------------------------------------------------------------------
 ## on Ifswitch:
@@ -97,40 +112,42 @@ train_ifswitch <- read.csv("data/training_ifswitch.csv") %>%
   select(id,ifswitch) %>%
   inner_join(factor)
 
-## change to factor 
-for(i in 1:length(names(train_ifswitch))){
-  if(!(names(train_ifswitch)[i] %in% c("switch_ratio","Age",
-                                    "profile_household_children", 
-                                    "profile_gross_personal",
-                                    "profile_gross_household",
-                                    "profile_educaiton_age"))){
+## Treat NA as another factor-level
+for(i in 3:length(names(train_ifswitch))){
+  if(class(train_ifswitch[,i]) == "factor"){
+    train_ifswitch[,i]<-addNA(train_ifswitch[,i])
+  }else{
     train_ifswitch[,i] <- as.factor(train_ifswitch[,i])
+    train_ifswitch[,i]<-addNA(train_ifswitch[,i])
   }
 }
 
-
-## LASSO:
-f2 <- reformulate(response=NULL, termlabels=names(train_ifswitch)[-c(1,2)],intercept =FALSE)
+## LASSO for ifswitch:
+f2 <- reformulate(response=NULL, termlabels=names(train_ifswitch)[-c(1)],intercept =FALSE)
 options(na.action='na.pass')
-train_ifswitch_factor <- model.matrix(f2, train_ifswitch)  ## CHECK: DID IT JUST ELIMINATE ANY NA???
-## TODO: Need to deal with NAs
-##  only left with 9043 without NAs
-## DECISION: Replaced all NAs with 0s
-train_ifswitch_factor[is.na(train_ifswitch_factor)] <- 0
+train_ifswitch_factor <- model.matrix(f2, train_ifswitch)  
 
-fit2 <- glmnet(x = train_ifswitch_factor, y = train_ifswitch[,2],
-              alpha = 1, nlambda = 10, standardize = TRUE, family = "binomial")
-plot(fit2, xvar = "lambda", label = TRUE)
-plot(fit2, xvar = "dev", label = TRUE)
-coef(fit2, s = 0.001)
+lasso_ifswitch <- cv.glmnet(x = train_ifswitch_factor[,-1], y = train_ifswitch_factor[,1],
+              alpha = 1, nlambda = 10, standardize = TRUE, family = "binomial",type.measure = "auc")
+## AUC vs lambda
+plot.cv.glmnet(lasso_ifswitch)
+coef2 <- coef(lasso_ifswitch, s = 1.395e-02) #36 factors
+non_zero_fact2 <- coef2@i[-1]
+non_zero_coef2 <- coef2@x[-1]
+lasso_ifswitch_factors <- as.data.frame(cbind2(c("intercept",colnames(train_ifswitch_factor)[non_zero_fact2]), ## here it is lining up just nicely
+                                            c(coef2@x[1],non_zero_coef2)))
+write.csv(lasso_ifswitch_factors, "36_lasso_factors_ifswitch.csv")
+
+dplyr::setdiff(lasso_ifswitch_factors$V1,lasso_ratio_factors$V1)
+
+lasso_ifswitch_factors %>%
+  inner_join(lasso_ratio_factors, by = "V1")
 
 # TODO: correlation analysis
 # How to choose s
 # Then coefficient
 
 #----------------------------------------------------------------------------------------
-
-
 
 
 ## Using dataset with dummy from An:
