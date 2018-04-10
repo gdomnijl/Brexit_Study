@@ -5,6 +5,24 @@ library(readstata13)
 
 dataset <- read.dta13("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta") 
 #------------------------------------------------------------------
+### columns of immigration-related factors
+immig <- c("immiLevel", "changeImmig", "immigEcon","immiCultural","controlImmig",
+           "govtHandleImmig", "effectsEUImmigration", "euPriorityBalance",
+           "immigrantsWelfareSate","promiseMigration","proposalMigration")
+immig_index <-c()
+for(i in 1:length(immig)){
+  immig_index <-c(immig_index,grep(immig[i], names(dataset)))
+}
+
+labour_index <- grep(c("Lab","lab"),names(dataset)[immig_index])
+
+immig_index <- immi_index[-labour_index]
+immig_data <- dataset %>%
+  select(immig_index)
+
+
+
+#------------------------------------------------------------------
 ### SMALL PIECES HERE AND THERE
 ## remove seemingly irrelevant factors
 de <- c("competent", "authLong", "grammar", "LookAfter", "overseasAid","^W1","^W2","^W3","^W4","^W5","^W6","^W10","^W11","^W12","^W13")
