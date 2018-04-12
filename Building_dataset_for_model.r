@@ -3,12 +3,17 @@ library(tidyverse)
 library(readstata13)
 
 
-dataset <- read.dta13("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta") 
+dataset2 <- read.dta13("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta", 
+                      convert.factors = TRUE,
+                      generate.factors = TRUE)
+
+dataset <- haven::read_dta("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta")
 #------------------------------------------------------------------
 ### columns of immigration-related factors
-immig <- c("immiLevel", "changeImmig", "immigEcon","immiCultural","controlImmig",
-           "govtHandleImmig", "effectsEUImmigration", "euPriorityBalance",
-           "immigrantsWelfareSate","promiseMigration","proposalMigration")
+immig <- c("immigrationLevel", "changeImmig", "immigEcon","immigCultural","controlImmig",
+           "effectsEUImmigration", #"euPriorityBalance", "govtHandleImmig"
+           "immigrantsWelfareState")#"promiseMigration","proposalMigration"
+           
 immig_index <-c()
 for(i in 1:length(immig)){
   immig_index <-c(immig_index,grep(immig[i], names(dataset)))
@@ -16,10 +21,15 @@ for(i in 1:length(immig)){
 
 labour_index <- grep(c("Lab","lab"),names(dataset)[immig_index])
 
-immig_index <- immi_index[-labour_index]
+immig_index <- immig_index[-labour_index]
 immig_data <- dataset %>%
-  select(immig_index)
+  select(1,immig_index)
 
+
+test <- as.numeric(immig_data$changeImmigW1)
+new_col = c(2,5,0)[as.numeric(factor_col)]
+
+write_csv(immig_data, "data/immig_cols.csv")
 
 
 #------------------------------------------------------------------
