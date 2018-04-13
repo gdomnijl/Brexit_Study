@@ -18,7 +18,7 @@ labour_index <- grep(c("Lab","lab"),names(dataset)[immig_index])
 
 immig_index <- immi_index[-labour_index]
 immig_data <- dataset %>%
-  select(immig_index)
+  select(1,immig_index) ## add id column too!
 
 
 
