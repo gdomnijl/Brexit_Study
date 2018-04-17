@@ -24,13 +24,12 @@ labour_index <- grep(c("Lab","lab"),names(dataset)[immig_index])
 immig_index <- immig_index[-labour_index]
 immig_data <- dataset %>%
   select(1,immig_index)
+save.image("immig_data.RData")
 
-
-test <- as.numeric(immig_data$changeImmigW1)
-new_col = c(2,5,0)[as.numeric(factor_col)]
 
 
 write_csv(immig_data, "data/immig_cols.csv")
+# turned immigration responses to numeric
 
 
 #------------------------------------------------------------------
