@@ -42,17 +42,17 @@ for(i in 3:length(names(immig_data))){
 
   ## 5 is pro
   if(i %in% c(lvl, eu)){
-    immig_data[,i] <- (immig_data[,i]-1)/4
+    immig_data[,i] <- 1-(immig_data[,i]-1)/4
   } 
   
   ## 1 is pro
   if(i %in% c(ctr,wel,chg)){
-    immig_data[,i] <- 1-(immig_data[,i]-1)/4
+    immig_data[,i] <- (immig_data[,i]-1)/4
   }
   
   ## 7 is pro
   if(i %in% c(econ, cul)){
-    immig_data[,i] <- (immig_data[,i]-1)/6
+    immig_data[,i] <- 1-(immig_data[,i]-1)/6
   } 
   
   # Since 'dk' are at extreme values,
@@ -62,36 +62,31 @@ for(i in 3:length(names(immig_data))){
                            NA, immig_data[,i])
 }
 
+
+
+#-------------------------------------------------------------------------------------
+
 ## TODO: measure how many people had drastic change in immigration attitude across waves
 ## Cross the 0.5 line
 for(i in 3:length(names(immig_data))){
   ## only compute from the second wave of response for each question
-  if(!i %in% c(lvl[1],eu[1],lvl[1],chg[1],wel[1],econ[1],cul[1])){
-    immig_chg <-immig_data %>%
-      mutate( = )
-    
-  }
-  ## 5 is pro
-  if(i %in% c(lvl, eu)){
-    immig_data[,i] <- (immig_data[,i]-1)/4
-  } 
-  
-  ## 1 is pro
-  if(i %in% c(ctr,wel,chg)){
-    immig_data[,i] <- 1-(immig_data[,i]-1)/4
-  }
-  
-  ## 7 is pro
-  if(i %in% c(econ, cul)){
-    immig_data[,i] <- (immig_data[,i]-1)/6
-  } 
-  
-  # Since 'dk' are at extreme values,
-  # after standardization, they will fall out of bound [0,1]
-  # so, turn them into NA
-  immig_data[,i] <- ifelse(immig_data[,i] > 1 | immig_data[,i] < 0,
-                           NA, immig_data[,i])
+  lvl_c <-immig_data[,c(2,lvl)]
+  chg_c <-immig_data[,c(2,chg)]
+  econ_c <-immig_data[,c(2,econ)]
+  cul_c <-immig_data[,c(2,cul)]
+  ctr_c <-immig_data[,c(2,ctr)]
+  eu_c <-immig_data[,c(2,eu)]
+  wel_c <-immig_data[,c(2,wel)]
 }
+
+t<-eu_c %>% 
+  gather(wave,index,-id)%>%
+  group_by(id)%>%
+  arrange(id)%>%
+  summarize(r = range(index)) 
+    #extreme = ifelse(range >= 0.5, 1, 0))
+  
+#-------------------------------------------------------------------------------------
 
 ## compute average metric on a personal level
 immig_plvl <- immig_data %>%
@@ -102,5 +97,41 @@ immig_plvl <- immig_data %>%
          controlImmig = rowMeans(immig_data[,ctr], na.rm = TRUE),
          effectsEUImmigration = rowMeans(immig_data[,eu], na.rm = TRUE),
          immigrantsWelfareState = rowMeans(immig_data[,wel], na.rm = TRUE)) %>%
-  mutate(lvl_c = )
+  select(id,immigrationLevel,changeImmig, immigEcon, immigCultural, 
+         controlImmig,effectsEUImmigration,immigrantsWelfareState) 
+write.csv(immig_plvl,"./data/immig_cols_standardized.csv")
+
+immig_plvl_index <- immig_plvl %>%
+  mutate(immig_index = rowMeans(immig_plvl[,2:length(names(immig_plvl))], na.rm = TRUE))
   
+
+### TODO: currently on with TRAINING SET
+###  merge table with switch ratio and static factors:
+factor<-read.csv("./data/dataset_static_factors.csv") %>% 
+  # Note: removed Age; Reason: set NA to 0 to other levels, so use factor(AgeGroup) instead of continuous (Age) 
+  # Note: remove mother/fatherNumEmployees(LOTS OF NAs & they are continuous)
+  # 31 factors other than id
+  select(-Age,-X, -motherNumEmployees, -fatherNumEmployees) 
+
+factor$headHouseholdPast<-plyr::revalue(as.factor(factor$headHouseholdPast), 
+                                        c("1"="My father", "2"="My mother", 
+                                          "3" = "Someone else",
+                                          "4" = "No one in my house worked",
+                                          "9999" = "Don't know"))
+vote <-read.csv("./data/dataset_static_factors.csv") %>%
+  select(id,profile_eurefvote)
+
+train_ratio <- read.csv("./data/training_switch_ratio.csv") %>% 
+  select(id,switch_ratio) %>%
+  inner_join(immig_plvl_index) %>%
+  inner_join(vote)
+  
+train_ratio %>%
+  ggplot(aes(x = profile_eurefvote, y = immig_index)) + geom_boxplot()
+
+
+#ifswitch <- read.csv("./data/training_ifswitch.csv")
+
+
+  ## f(x) = 2x - 1
+  # map from [0,1] to [-1,1]
