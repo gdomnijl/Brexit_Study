@@ -32,6 +32,7 @@ write_csv(immig_data, "data/immig_cols.csv")
 # turned immigration responses to numeric
 
 
+# final dataset
 #------------------------------------------------------------------
 ### SMALL PIECES HERE AND THERE
 ## remove seemingly irrelevant factors
@@ -97,16 +98,12 @@ wave_index <- grep("^wave\\d+",colnames(dataset)) # remove'wave1:wave13'
 
 ## dataset that contains factors that were asked only once (static)
 static_factors <- dataset %>%
-  select(-wave_spec_index,-wave_index) %>%## 52 of them
+  select(-wave_spec_index,-wave_index) %>% ## 52 of them
   select(-profile_lea, -profile_oslaua, -profile_socialgrade_cie,-euRefLA,-onscode)
 # contain both age and age_group at this point
 
-
 ## TODO1:
-
-
 write.csv(static_factors,"data/dataset_static_factors.csv")
-
 
 #------------------------------------------------------------------
 ### Compute SWITCHES
@@ -204,6 +201,7 @@ switch_dat <- temp_full %>%
   mutate(switch_ratio = ifelse(num_wave_voted == 0, 0, num_switch/num_wave_voted),
          ifswitch = ifelse(num_switch>0, 1,0))
 
+<<<<<<< 979b5680043a30e59753231e412f6517b6125e3a
 switch_dat$ifswitch <- as.factor(switch_dat$ifswitch)
 
 write.csv(switch_dat, "opinion_switch.csv")
@@ -236,3 +234,20 @@ count_switch <- function(row){
 }
 dataset_static <- inner_join(switch_dat,static)
 write.csv(dataset_static, "data/dataset_static_factors.csv")
+write.csv(switch_dat, "data/jinlin_switch.csv", row.names = FALSE)
+
+## make the full dataset:
+# switch data
+# immig_index 
+# static factor
+switch_dat <-read.csv("data/jinlin_switch.csv")
+static <-read.csv("data/dataset_static_factors.csv")%>%
+  select(-personality_neuroticism, -personality_openness, 
+         -personality_agreeableness, -personality_conscientiousness,
+         -personality_extraversion,-Age, -motherNumEmployees, -fatherNumEmployees, -X)
+
+full <- switch_dat %>%
+  select(id, ifswitch, switch_ratio)%>%
+  inner_join(static) %>%
+  inner_join(immig_factor)
+#final dataset
