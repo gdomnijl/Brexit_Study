@@ -215,5 +215,12 @@ write.csv(full, "data/final_data.csv", row.names = FALSE)
 ## create dataset for voter_type
 full2 <- full %>%
   mutate(voter_type = interaction(ifswitch,profile_eurefvote))
-  
 
+trainIndex <- createDataPartition(full2$voter_type, 
+                                   p = 0.75, list = FALSE,times = 1)
+train_dat <- full2[trainIndex,]
+test_dat <- full2[-trainIndex,]
+write.csv(train_dat, "data/training_voter_type.csv", row.names =FALSE)
+write.csv(test_dat, "data/test_voter_type.csv", row.names = FALSE)
+  
+write.csv(full2, "data/voter_type_data.csv", row.names = FALSE)
