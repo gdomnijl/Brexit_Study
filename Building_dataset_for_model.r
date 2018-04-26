@@ -201,7 +201,6 @@ switch_dat <- temp_full %>%
   mutate(switch_ratio = ifelse(num_wave_voted == 0, 0, num_switch/num_wave_voted),
          ifswitch = ifelse(num_switch>0, 1,0))
 
-<<<<<<< 979b5680043a30e59753231e412f6517b6125e3a
 switch_dat$ifswitch <- as.factor(switch_dat$ifswitch)
 
 write.csv(switch_dat, "opinion_switch.csv")
@@ -251,3 +250,13 @@ full <- switch_dat %>%
   inner_join(static) %>%
   inner_join(immig_factor)
 #final dataset
+
+write.csv(full, "data/final_data.csv", row.names = FALSE)
+
+
+## create dataset for voter_type
+full2 <- full %>%
+  mutate(voter_type = interaction(ifswitch,profile_eurefvote))
+  
+
+#dataset with voter_type
