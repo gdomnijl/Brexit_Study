@@ -178,12 +178,16 @@ train_bi %>%
 
 train_bi %>%
   ggplot(aes(x = interaction(as.factor(ifswitch), profile_eurefvote), y = immig_index5)) + geom_boxplot() +
-  facet_wrap(country ~ .)
   ggtitle("Voted leave")
 
   
-
+  
+## VISUALIZING VOTER_TYPE
+  
+  
 ## Correlation analysis
 
   ## f(x) = 2x - 1
   # map from [0,1] to [-1,1]
+  
+  
