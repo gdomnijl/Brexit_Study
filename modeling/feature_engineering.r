@@ -104,6 +104,22 @@ write.csv(immig_plvl,"./data/immig_cols_standardized.csv")
 immig_plvl_index <- immig_plvl %>%
   mutate(immig_index = rowMeans(immig_plvl[,2:length(names(immig_plvl))], na.rm = TRUE))
   
+## Correlation between these 7 responses
+
+library("corrplot")
+res <- cor(immig_plvl[,-1], use = "na.or.complete")
+corrplot(res, method = "shade", type = "upper",
+         tl.col = "black", tl.srt = 45, tl.cex = 0.7)
+
+## So now compute the immig_index using average of the 5 questions
+immig_plvl_index5 <- immig_plvl %>%
+  mutate(immig_index5 = rowMeans(immig_plvl[,c(2:5,8)], na.rm = TRUE))
+
+
+immig_factor <- immig_plvl %>%
+  select(c(1,6,7)) %>%
+  inner_join(immig_plvl_index5)%>%
+  select(id,controlImmig,effectsEUImmigration,immig_index5)
 
 ### TODO: currently on with TRAINING SET
 ###  merge table with switch ratio and static factors:
@@ -118,20 +134,56 @@ factor$headHouseholdPast<-plyr::revalue(as.factor(factor$headHouseholdPast),
                                           "3" = "Someone else",
                                           "4" = "No one in my house worked",
                                           "9999" = "Don't know"))
-vote <-read.csv("./data/dataset_static_factors.csv") %>%
-  select(id,profile_eurefvote)
 
+
+vote <-read.csv("./data/dataset_static_factors.csv")
 train_ratio <- read.csv("./data/training_switch_ratio.csv") %>% 
   select(id,switch_ratio) %>%
-  inner_join(immig_plvl_index) %>%
+  inner_join(immig_plvl_index5) %>%
   inner_join(vote)
   
 train_ratio %>%
-  ggplot(aes(x = profile_eurefvote, y = immig_index)) + geom_boxplot()
+  ggplot(aes(x = profile_eurefvote, y = immig_index5)) + geom_boxplot()
+## why immig_index raised amongst switchers
 
 
-#ifswitch <- read.csv("./data/training_ifswitch.csv")
+train_ratio %>%
+  filter(switch_ratio!=0) %>%
+  ggplot(aes(switch_ratio)) + geom_histogram(binwidth = 0.1)
 
+train_ratio %>%
+  filter(switch_ratio!=0) %>%
+  ggplot(aes(y = immig_index5, x = as.factor(switch_ratio)))+geom_boxplot()
+
+## TODO: switch_ratio is extremely "right skewed" because 2/3 of the response don't switch
+## TODO: Look at switch_ratio of the population who indeed switch
+## NOTE: it is still heavily right skewed within all the "switchers"
+## TODO: 
+## model 1: all population using ifswitch
+## model 2: use switch_ratio amongst "switchers"
+train_bi <- read.csv("./data/jinlin_switch.csv") %>%
+  select(id,ifswitch) %>%
+  inner_join(immig_plvl_index5) %>%
+  inner_join()
+  inner_join(vote)
+
+train_bi %>% 
+  filter(profile_)
+  ggplot(aes(x = as.factor(ifswitch), y = immig_index5)) + geom_boxplot()
+
+## TODO: plot all groups in one graph
+## This group of people is very interesting:
+## Voted for stay yet switched opinion
+## TODO: direction of switch
+
+train_bi %>%
+  ggplot(aes(x = interaction(as.factor(ifswitch), profile_eurefvote), y = immig_index5)) + geom_boxplot() +
+  facet_wrap(country ~ .)
+  ggtitle("Voted leave")
+
+  
+
+## Correlation analysis
 
   ## f(x) = 2x - 1
   # map from [0,1] to [-1,1]
