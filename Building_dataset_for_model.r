@@ -209,3 +209,11 @@ full <- switch_dat %>%
   select(id, ifswitch, switch_ratio)%>%
   inner_join(static) %>%
   inner_join(immig_factor)
+write.csv(full, "data/final_data.csv", row.names = FALSE)
+
+
+## create dataset for voter_type
+full2 <- full %>%
+  mutate(voter_type = interaction(ifswitch,profile_eurefvote))
+  
+
