@@ -1,3 +1,10 @@
+---
+title: "Brexit"
+output: html_notebook
+---
+
+
+```{r, echo = FALSE}
 library(tidyverse)
 dat <- read.csv("data/voter_type_data.csv")
 dat$voter_type <- factor(dat$voter_type, levels = c("0.Stay/remain in the EU", 
@@ -11,57 +18,43 @@ dat$headHouseholdPast<-plyr::revalue(as.factor(dat$headHouseholdPast),
                                           "3" = "Someone else",
                                           "4" = "No one in my house worked",
                                           "9999" = "Don't know"))
-## Build up: 
-## why we look at ifswitch:
-
-## 1:
-## The highly skewed portion 
+```
+### Why 'ifswitch' intead of 'switch_ratio':
+Firstly, the proportion is highly skewed
+```{r}
 table(dat$ifswitch)
 # 0     1 
 # 48327 20298 
+```
 
+Distribution of the switch_ratio looks like:
+```{r echo = FALSE}
 dat %>%
   ggplot(aes(switch_ratio)) + geom_histogram(binwidth = 0.03)
+```
 
+Without looking at voters who never switched:
+```{r echo = FALSE}
 # NOTE: bin width: 0.5 peaked!
 dat %>%
   filter(switch_ratio!=0) %>%
   ggplot(aes(switch_ratio)) + geom_histogram(binwidth = 0.02)
+```
 
-## 2: immigration sentiment appears consistent irrespective of switch_ratio
+Secondly, immigration sentiment appears consistent irrespective of switch_ratio
+
+```{r echo = FALSE}
 dat %>%
   filter(switch_ratio!=0) %>%
   ggplot(aes(x = as.factor(switch_ratio), y = immig_index5)) + geom_boxplot() +
   xlab("Switch Ratio Amongst 'Switchers'") + ylab("Anti-immigrant Sentiment Index")+
   scale_x_discrete(breaks=c(0:1))
+```
 
+### Distribution of immigration sentiment across public
+```{R echo = FALSE}
 
-## Distribution of immigration sentiment across public
 dat %>%
   ggplot(aes(immig_index5)) + geom_histogram(binwidth = 0.02)
+```
 
-## Plot according to type
-dat %>%  
-  filter(!voter_type %in% c("0.Don't know", "1.Don't know") & !is.na(voter_type))%>%
-  ggplot(aes(x = voter_type, y = immig_index5, color = country)) + geom_boxplot() + 
-#  facet_grid(country ~ .) + 
-  scale_x_discrete(labels=c("Always-Stay", "Switched-Stay", "Switched-Leave", "Always-Leave"))+
-annotate("text", x = 1:4, y = 0, label = c(as.character(ct$count)))
-
-ct<-dat %>%
-  select(voter_type) %>%
-  filter(!voter_type %in% c("0.Don't know", "1.Don't know") & !is.na(voter_type))%>%
-  group_by(voter_type) %>%
-  summarise(count = n())
-
-
-ready <-dat %>%  
-  filter(!voter_type %in% c("0.Don't know", "1.Don't know") & !is.na(voter_type))
-
-plot_ly(p, y = ~immig_index5, x = ~voter_type, color = ~countryOfBirth, type = "box") %>%
-  layout(boxmode = "group")
-
-
-  
-
-  
