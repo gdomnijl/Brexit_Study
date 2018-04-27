@@ -43,7 +43,7 @@ dat %>%
 ## Plot according to type
 dat %>%  
   filter(!voter_type %in% c("0.Don't know", "1.Don't know") & !is.na(voter_type))%>%
-  ggplot(aes(x = voter_type, y = immig_index5, color = country)) + geom_boxplot() + 
+  ggplot(aes(x = voter_type, y = immig_index5, color = country)) + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75), adjust = 0.5) + 
 #  facet_grid(country ~ .) + 
   scale_x_discrete(labels=c("Always-Stay", "Switched-Stay", "Switched-Leave", "Always-Leave"))+
 annotate("text", x = 1:4, y = 0, label = c(as.character(ct$count)))
