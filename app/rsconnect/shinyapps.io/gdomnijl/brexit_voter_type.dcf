@@ -1,0 +1,12 @@
+name: brexit_voter_type
+title: Brexit_voter_type
+username:
+account: gdomnijl
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 331115
+bundleId: 1341196
+url: https://gdomnijl.shinyapps.io/brexit_voter_type/
+when: 1524762598.02169
+asMultiple: FALSE
+asStatic: FALSE
