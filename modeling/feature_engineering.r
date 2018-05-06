@@ -185,9 +185,10 @@ train_bi %>%
   
 ## Correlation analysis
 
-
-
-
+## VISUALIZING VOTER_TYPE
+  
+  
+## Correlation analysis
   ## f(x) = 2x - 1
   # map from [0,1] to [-1,1]
   

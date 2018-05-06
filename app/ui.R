@@ -12,6 +12,7 @@ shinyUI(fluidPage(
     sidebarPanel(
       
       selectInput("group_choice", "Breakdown by groups", c(names(dat)[c(2:19,22:28)]), selected = "country", multiple = FALSE,
+
                   selectize = TRUE, width = NULL, size = NULL)
       
     ),
@@ -20,7 +21,9 @@ shinyUI(fluidPage(
     mainPanel(
        #plotOutput("plot")
        plotlyOutput("plot")
+
        #plotlyOutput("timeline_plot")
+
     )
   )
 ))

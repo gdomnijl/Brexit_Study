@@ -12,6 +12,7 @@ library(plotly)
 #dat <- read.csv("../data/bi_voter_type_data.csv")
 dat <- read.csv("../data/Relvl_bi_voter_type.csv")
 dat$bi_voter_type <- factor(dat$bi_voter_type, levels = c("0.Stay/remain in the EU", 
+
                                                     "1.Stay/remain in the EU", 
                                                     "1.Leave the EU",
                                                     "0.Leave the EU",
@@ -57,6 +58,7 @@ shinyServer(function(input, output){
       d<-dat %>% 
         select(c(factor_index(),20,21)) %>%
         filter(!bi_voter_type %in% c("0.Don't know", "1.Don't know") & !is.na(bi_voter_type))
+
     # }else{
     #   dat %>% 
     #     select(c(31,32)) %>%
@@ -95,6 +97,7 @@ shinyServer(function(input, output){
    })
    
    
+
   # output$plot <- renderPlot({
   #   data() %>%
   #     filter(!voter_type %in% c("0.Don't know", "1.Don't know") & !is.na(voter_type))%>%
@@ -107,10 +110,12 @@ shinyServer(function(input, output){
       geom_boxplot() + 
           scale_x_discrete(labels=c("Always-Stay", "Switched-Stay", "Switched-Leave", "Always-Leave"))+
           annotate("text", x = 1:4, y = 0, label = c(as.character(ct$count)))
+
         ggplotly(p) %>% 
           layout(height = input$plotHeight, autosize=TRUE) %>%
           # plot_ly(data(), y = ~immig_index5, x = ~voter_type, color = paste0("~",input$group_choice), type = "box") %>%
           layout(boxmode = "group")
+
       })
     #}else{
       # p <- ggplot(data(), aes_string(x = "voter_type", y = "immig_index5")) + 
@@ -147,4 +152,5 @@ shinyServer(function(input, output){
     # annotate("text", x = ref_time, y = 0.9, label = "Referendum")
 
  
+
 })

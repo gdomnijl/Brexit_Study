@@ -245,7 +245,10 @@ count_switch <- function(row){
 }
 dataset_static <- inner_join(switch_dat,static)
 write.csv(dataset_static, "data/dataset_static_factors.csv")
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5fe0a45cc9b93b3d64887a918e2aa20156ee6a6d
 write.csv(switch_dat, "data/jinlin_switch.csv", row.names = FALSE)
 
 # binary swtich
