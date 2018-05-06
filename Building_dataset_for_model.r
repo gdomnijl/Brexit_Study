@@ -26,13 +26,12 @@ immig_data <- dataset %>%
   select(1,immig_index)
 save.image("immig_data.RData")
 
-
-
 write_csv(immig_data, "data/immig_cols.csv")
 # turned immigration responses to numeric
 
 
 # final dataset
+
 #------------------------------------------------------------------
 ### SMALL PIECES HERE AND THERE
 ## remove seemingly irrelevant factors
@@ -246,6 +245,7 @@ count_switch <- function(row){
 }
 dataset_static <- inner_join(switch_dat,static)
 write.csv(dataset_static, "data/dataset_static_factors.csv")
+
 write.csv(switch_dat, "data/jinlin_switch.csv", row.names = FALSE)
 
 # binary swtich
