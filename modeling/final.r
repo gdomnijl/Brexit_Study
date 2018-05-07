@@ -458,12 +458,10 @@ ggplotly(grp_p) %>%
 
 
 #---------------------------------------------------------------------------------------------------
-immig_check2 <- read.csv("data/immig_cols_standardized.csv")
-
 immig_check <- read.csv("data/immig_cols.csv") %>%
   gather(questions, response, -X, -id) %>% 
-  arrange(id) %>%
-  mutate(qn = ifelse(questions))
+  arrange(id)
+  #mutate(qn = ifelse(questions))
 
 
 
@@ -489,5 +487,186 @@ for(i in 1:4) {
 }
 
   
-
+#---------------------------------------------------------------------------------------------------
+## To investigate different dimensions of the immigration sentiments:
+# * Perception of size
+# * Economy
+# * Cultural
+# * Welfare State
+library(readr)
+immig_check <- read.csv("data/immig_cols.csv") %>%
+  gather(questions, response, -X, -id) %>% 
+  arrange(id) %>%
+  select(-X) %>%
+  mutate(wave = parse_number(questions)) %>%
+  mutate(questions = sub("W\\d+","",questions)) %>%
+  filter(questions %in% c("changeImmig", "immigrantsWelfareState",
+                          "immigCultural", "immigEcon"))%>%
+  mutate(std = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState"),
+         (response-1)/4,
+                1-(response-1)/6)) %>%
+  mutate(std = ifelse(std > 1 | std < 0, NA, std))
+# Citation:
+# http://www.cookbook-r.com/Manipulating_data/Filling_in_NAs_with_last_non-NA_value/
+fillNAgaps <- function(x, firstBack=FALSE) {
+  ## NA's in a vector or factor are replaced with last non-NA values
+  ## If firstBack is TRUE, it will fill in leading NA's with the first
+  ## non-NA value. If FALSE, it will not change leading NA's.
   
+  # If it's a factor, store the level labels and convert to integer
+  lvls <- NULL
+  if (is.factor(x)) {
+    lvls <- levels(x)
+    x    <- as.integer(x)
+  }
+  
+  goodIdx <- !is.na(x)
+  
+  # These are the non-NA values from x only
+  # Add a leading NA or take the first good value, depending on firstBack   
+  if (firstBack)   goodVals <- c(x[goodIdx][1], x[goodIdx])
+  else             goodVals <- c(NA,            x[goodIdx])
+  
+  # Fill the indices of the output vector with the indices pulled from
+  # these offsets of goodVals. Add 1 to avoid indexing to zero.
+  fillIdx <- cumsum(goodIdx)+1
+  
+  x <- goodVals[fillIdx]
+  
+  # If it was originally a factor, convert it back
+  if (!is.null(lvls)) {
+    x <- factor(x, levels=seq_along(lvls), labels=lvls)
+  }
+  x
+}
+all_13_id <- read.csv("data/all_waves.csv") %>%
+  select(id)
+
+check <- all_13_id %>%
+  inner_join(immig_check) %>%
+  group_by(id,questions) %>%
+  arrange(id,questions,wave) %>%
+  mutate(full_std = fillNAgaps(std)) %>%
+  mutate(pre = lag(full_std,1)) %>%
+  mutate(change = full_std - pre) %>%
+  mutate(tag = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
+                  change >= 0.25,  #0.25 count 'jump at least one level' as a change 
+                  "more-anti",
+                  ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
+                           change <= -0.25, 
+                         "less-anti",
+                         ifelse(questions %in% c("immigCultural", "immigEcon") &
+                                  change >= 0.333, # 0.33 count 'jump at least two levels' as a change
+                                "more-anti",
+                                ifelse(questions %in% c("immigCultural", "immigEcon") &
+                                         change <= -0.333, 
+                                       "less-anti",
+                                       ifelse(is.na(change), NA,
+                                              "no change"))))))
+
+library(gridExtra)
+more <- check %>%
+  filter(!is.na(tag))%>%
+  group_by(questions, wave, tag) %>%
+  mutate(num = n()) %>%
+  ungroup() %>%
+  group_by(questions, wave) %>%
+  mutate(total = n()) %>%
+  mutate(ratio = num/total) %>%
+  filter(questions == "immigControl")%>%
+  ungroup() %>%
+  select(wave, ratio, tag) %>%
+  unique() %>%
+  ggplot(aes(x = wave, y = ratio, group = tag, fill = tag)) + 
+  geom_bar(stat = "identity") +
+scale_x_continuous(breaks = 2:13)
+
+less <- check %>%
+  filter(!is.na(tag))%>%
+  group_by(questions, wave, tag) %>%
+  mutate(num = n()) %>%
+  ungroup() %>%
+  group_by(questions, wave) %>%
+  mutate(total = n()) %>%
+  mutate(ratio = num/total) %>%
+  filter(tag=="less-anti") %>%
+  ggplot(aes(x = wave, y = ratio, group = questions,color = questions )) + geom_line() +geom_point()+
+  scale_x_continuous(breaks = 2:13)+
+  ggtitle("less anti-immigrant")
+
+
+no_change <-check %>%
+  group_by(questions, wave, tag) %>%
+  mutate(num = n()) %>%
+  ungroup() %>%
+  group_by(questions, wave) %>%
+  mutate(total = n()) %>%
+  mutate(ratio = num/total) %>%
+  filter(tag=="no change") %>%
+  ggplot(aes(x = wave, y = ratio, group = questions,color = questions )) + geom_line() +geom_point()+
+scale_x_continuous(breaks = 2:13) +
+  ggtitle("relatively constant")
+
+grid.arrange(more, less, no_change, ncol = 1)
+
+#---------------------------------------------------------------------------------------------------
+# Max and mean for all people
+# TODO: add immigLevel
+max_min<-immig_check %>%
+  group_by(id, questions) %>%
+  mutate(max = max(std, na.rm = TRUE),
+         min = min(std, na.rm = TRUE),
+         diff = max - min) %>%
+  mutate(tag = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
+                        diff >= 0.5,  #jump at least two level' 
+                      "big change",
+           ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
+                        diff >= 0.25,  #jump at least one level'
+                      "small change",
+                        ifelse(questions %in% c("immigCultural", "immigEcon") &
+                                      diff >= 0.5, # jump at least three levels' 
+                                    "big change",
+                               ifelse(questions %in% c("immigCultural", "immigEcon") &
+                                        diff >= 0.333, #'jump at least two levels' 
+                                      "small change",
+                                           ifelse(is.na(diff), NA,
+                                                  "no change"))))))
+max_min$tag<-factor(as.factor(max_min$tag),level =  c("big change",
+"small change", "no change", NA))
+
+require(scales)
+
+max_min %>%
+  filter(!is.na(tag))%>%
+  group_by(questions,tag)%>%
+  mutate(count = n()) %>%
+  ungroup() %>%
+  group_by(questions) %>%
+  mutate(total = n()) %>%
+  mutate(ratio = count/total) %>%
+  select(ratio, questions, tag) %>%
+  unique() %>%
+  ggplot(aes(x = questions, y = ratio, group = tag, fill = tag)) +
+  labs(y = "Percent", fill = "") +
+  geom_bar(stat = "identity")
+
+max_min %>%
+  filter(!is.na(tag)) %>%
+  ggplot(aes(x= questions, group = tag)) + 
+  geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count") +
+  geom_text(aes( label = scales::percent(..prop..),
+                 y= ..prop.. ), stat= "count", vjust = -.5) +
+  labs(y = "Percent", fill="tag") +
+  #facet_grid(~sex) +
+  scale_y_continuous(labels = scales::percent)
+
+max_min %>%
+  filter(questions %in% c("changeImmig","immigrantsWelfareState")) %>%
+  ggplot(aes(x = diff)) + geom_histogram(stat= "count", binwidth = 0.2)+
+  #scale_y_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1),labels = c(0,0.2,0.4,0.6,0.8,1) )+
+  facet_grid(questions~.)
+
+max_min %>%
+  filter(questions %in% c("immigCultural", "immigEcon")) %>%
+  ggplot(aes(x = diff)) + geom_histogram(stat= "count", binwidth = 0.2)+
+  facet_grid(questions~.)
