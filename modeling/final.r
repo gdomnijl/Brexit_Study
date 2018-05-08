@@ -3,7 +3,9 @@ dat <- read.csv("data/voter_type_data.csv")
 new_relvl <-read.csv("data/Final_relvl_bi_voter_type.csv")%>%
   select(id, rl_profile_ethnicity, rl_profile_religion_denom,
          rl_profile_religion, rl_profile_newspaper)
-bi_dat <- read.csv("data/Relvl_bi_voter_type.csv")#%>%
+bi_dat <- read.csv("data/Relvl_bi_voter_type.csv")%>%
+  select(-profile_ethnicity, -profile_religion_denom, -profile_religion, -profile_newspaper,
+         -profile_eurefvote)%>%
   inner_join(new_relvl)
 
 dat$voter_type <- factor(dat$voter_type, levels = c("0.Stay/remain in the EU", 
@@ -20,12 +22,35 @@ bi_dat$bi_voter_type <- factor(bi_dat$bi_voter_type, levels = c("0.Stay/remain i
                                                     "1.Don't know"))
 
 
-immig_data <- read.csv("data/immig_cols_standardized.csv") %>%
-  select(-X)
+immig_data <- read.csv("data/AIS.csv")
 ulti_dat <- bi_dat %>% 
   inner_join(immig_data)
-write.csv(ulti_dat, row.names = FALSE)
+write.csv(ulti_dat,"data/ultimate_data.csv", row.names = FALSE)
 
+immig_measure <- ulti_dat %>%
+  select(1,13,14,28:33)%>%
+  gather(measure, value,-id)
+
+ulti_plot <- ulti_dat %>%
+  select(id,bi_voter_type) %>%
+  inner_join(immig_measure)
+
+ulti_plot$measure <- factor(ulti_plot$measure, levels = c("AIS",
+                                                            "immigCultural",
+                                                            "immigEcon",
+                                                            "immigrantsWelfareState",
+                                                            "changeImmig",
+                                                            "controlImmig",
+                                                            "effectsEUImmigration",
+                                                            "immigrationLevel"))
+
+ulti_dat$ageGroup <- relevel(ulti_dat$ageGroup,"Under 18")
+ulti_dat$rl_gross_household <- factor(ulti_dat$rl_gross_household, levels = c("0-14,999 per year",
+                                                                              "15,000-29,999 per year",
+                                                                              "30,000 to 49,999 per year",
+                                                                              "50,000-149,999 per year",
+                                                                              "150,000 and above"))
+write.csv(ulti_plot, "data/ultimate_plot.csv", row.names = FALSE)
 
 library(ggplot2)
 ggplot(bi_dat, aes_string(x = "bi_voter_type", y = "immig_index5", fill = "bi_voter_type")) + 
@@ -245,12 +270,12 @@ select(-bi_ifswitch,-bi_switch_ratio)%>%
 
 write.csv(dat_lv, "data/Relvl_bi_voter_type.csv", row.names = FALSE)
 
-bi_index <- createDataPartition(dat_lv$bi_voter_type, 
+bi_index <- createDataPartition(ulti_dat$bi_voter_type, 
                                      p = 0.75, list = FALSE,times = 1)
 
 ## NOTE: Eliminating NAs from effectsEUImmigration and controlImmig
-train_dat2 <- dat_lv[bi_index,]
-test_dat2 <- dat_lv[-bi_index,]
+train_dat2 <- ulti_dat[bi_index,]
+test_dat2 <- ulti_dat[-bi_index,]
 write.csv(train_dat2, "data/Relvl_bi_training.csv", row.names = FALSE)
 write.csv(test_dat2, "data/Relvl_bi_testing.csv", row.names = FALSE)
 
@@ -358,12 +383,13 @@ res <- cor(immig_col[,-c(1,2)], use = "na.or.complete")
 corrplot(res, method = "shade", type = "upper",
          tl.col = "black", tl.srt = 45, tl.cex = 0.7)
 library("Hmisc")
-res2<-rcorr(as.matrix(immig_col[,-c(1,2)]))
+res2<-rcorr(as.matrix(immig_col[,c(4,5,6,9)]))
 
-corrplot(res2$r, type="upper", order="hclust", 
-         p.mat = res2$P, sig.level = 0.01, 
-         tl.srt = 45, insig = "blank",
-         tl.col = "black", tl.cex = 0.5)
+corrplot.mixed(res2$r, lower = "number", upper = "circle", tl.col = "black", tl.cex = 0.7)
+# ,  order="hclust", #type="upper",
+#          p.mat = res2$P, sig.level = 0.01, 
+#          tl.srt = 45, insig = "blank",
+#          tl.col = "black", tl.cex = 0.75, number.cex = 0.5)
 
 #------------------------------------------------------------------------------------------------------
 
@@ -652,13 +678,14 @@ grid.arrange(more, less, no_change, ncol = 1)
 # TODO: add immigLevel
 max_min<-immig_check %>%
   group_by(id, questions) %>%
+  filter(questions!="immigrationLevel")%>%
   mutate(max = max(std, na.rm = TRUE),
          min = min(std, na.rm = TRUE),
          diff = max - min) %>%
-  mutate(tag = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState", "immigrationLevel") &
+  mutate(tag = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
                         diff >= 0.5,  #jump at least two level' 
                       "significant change",
-           ifelse(questions %in% c("changeImmig", "immigrantsWelfareState","immigrationLevel") &
+           ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
                         diff >= 0.25,  #jump at least one level'
                       "tolerable change",
                         ifelse(questions %in% c("immigCultural", "immigEcon") &
@@ -675,12 +702,16 @@ max_min$tag<-factor(as.factor(max_min$tag),level =  c("significant change",
 require(scales)
 
 max_min_count <- max_min %>%
+  ungroup()%>%
   filter(!is.na(tag))%>%
+  select(id,questions,tag) %>%
+  unique() %>%
   group_by(questions,tag)%>%
   mutate(count = n()) %>%
   ungroup() %>%
   group_by(questions) %>%
   mutate(total = n())
+
 ct2 <- max_min_count %>%
   ungroup()%>%
   arrange(questions) %>%
@@ -696,7 +727,7 @@ max_min_count %>%
   geom_bar(stat = "identity") +
   labs(y = "Percent of the respondents", x = "Questions", 
        fill = "Range of change \n(Max - Min)") +
-  annotate("text", x = 1:5, y = 0.1, label = c(as.character(ct2)))
+  annotate("text", x = 1:4, y = 0.1, label = c(as.character(ct2)))
 
 
 

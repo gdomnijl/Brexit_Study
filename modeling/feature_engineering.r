@@ -101,9 +101,12 @@ immig_plvl <- immig_data %>%
          controlImmig,effectsEUImmigration,immigrantsWelfareState) 
 write.csv(immig_plvl,"./data/immig_cols_standardized.csv")
 
+immig_plvl <- read.csv("data/immig_cols_standardized.csv")
 immig_plvl_index <- immig_plvl %>%
-  mutate(immig_index = rowMeans(immig_plvl[,2:length(names(immig_plvl))], na.rm = TRUE))
+  mutate(AIS = rowMeans(immig_plvl[,c(5,6,9)], na.rm = TRUE)) %>%
+  select(-X)
   
+write.csv(immig_plvl_index, "data/AIS.csv", row.names = FALSE)
 ## Correlation between these 7 responses
 
 library("corrplot")
