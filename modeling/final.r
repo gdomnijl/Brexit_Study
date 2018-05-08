@@ -1,6 +1,10 @@
 library(tidyverse)
 dat <- read.csv("data/voter_type_data.csv")
-bi_dat <-read.csv("data/Relvl_bi_voter_type.csv")
+new_relvl <-read.csv("data/Final_relvl_bi_voter_type.csv")%>%
+  select(id, rl_profile_ethnicity, rl_profile_religion_denom,
+         rl_profile_religion, rl_profile_newspaper)
+bi_dat <- read.csv("data/Relvl_bi_voter_type.csv")#%>%
+  inner_join(new_relvl)
 
 dat$voter_type <- factor(dat$voter_type, levels = c("0.Stay/remain in the EU", 
                                                     "1.Stay/remain in the EU", 
@@ -14,6 +18,21 @@ bi_dat$bi_voter_type <- factor(bi_dat$bi_voter_type, levels = c("0.Stay/remain i
                                                     "0.Leave the EU",
                                                     "0.Don't know",
                                                     "1.Don't know"))
+
+
+immig_data <- read.csv("data/immig_cols_standardized.csv") %>%
+  select(-X)
+ulti_dat <- bi_dat %>% 
+  inner_join(immig_data)
+write.csv(ulti_dat, row.names = FALSE)
+
+
+library(ggplot2)
+ggplot(bi_dat, aes_string(x = "bi_voter_type", y = "immig_index5", fill = "bi_voter_type")) + 
+  geom_boxplot() + 
+  scale_x_discrete(labels=c("Always-Stay", "Switched-Stay", "Switched-Leave", "Always-Leave"))+
+  #annotate("text", x = 1:4, y = 0, label = c(as.character(ct$count)))+
+  scale_fill_manual(values=c("#2c7fb8","#7fcdbb","#fdae6b","#e6550d"))
 
 ## Build up: 
 ## why we look at ifswitch:
@@ -501,10 +520,12 @@ immig_check <- read.csv("data/immig_cols.csv") %>%
   mutate(wave = parse_number(questions)) %>%
   mutate(questions = sub("W\\d+","",questions)) %>%
   filter(questions %in% c("changeImmig", "immigrantsWelfareState",
-                          "immigCultural", "immigEcon"))%>%
+                          "immigCultural", "immigEcon", "immigrationLevel"))%>%
   mutate(std = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState"),
          (response-1)/4,
-                1-(response-1)/6)) %>%
+         ifelse(questions == "immigrationLevel",
+                1-(response-1)/4,
+                1-(response-1)/6))) %>%
   mutate(std = ifelse(std > 1 | std < 0, NA, std))
 # Citation:
 # http://www.cookbook-r.com/Manipulating_data/Filling_in_NAs_with_last_non-NA_value/
@@ -556,15 +577,14 @@ check <- all_13_id %>%
                            change <= -0.25, 
                          "less-anti",
                          ifelse(questions %in% c("immigCultural", "immigEcon") &
-                                  change >= 0.333, # 0.33 count 'jump at least two levels' as a change
+                                  change >= 0.166, #0.333, # 0.33 count 'jump at least two levels' as a change
                                 "more-anti",
                                 ifelse(questions %in% c("immigCultural", "immigEcon") &
-                                         change <= -0.333, 
+                                         change <= -0.166,  #-0.333, 
                                        "less-anti",
                                        ifelse(is.na(change), NA,
                                               "no change"))))))
 
-library(gridExtra)
 more <- check %>%
   filter(!is.na(tag))%>%
   group_by(questions, wave, tag) %>%
@@ -573,13 +593,29 @@ more <- check %>%
   group_by(questions, wave) %>%
   mutate(total = n()) %>%
   mutate(ratio = num/total) %>%
-  filter(questions == "immigControl")%>%
+  filter(questions == "immigrantsWelfareState")%>%
   ungroup() %>%
   select(wave, ratio, tag) %>%
   unique() %>%
   ggplot(aes(x = wave, y = ratio, group = tag, fill = tag)) + 
   geom_bar(stat = "identity") +
-scale_x_continuous(breaks = 2:13)
+scale_x_continuous(breaks = 2:13) +
+  #ggtitle("Response to questions: \nDo you think immigration is good or bad \nfor Britain’s economy?")
+ggtitle("Response to question: \n'Immigrants are a burden on the welfare state.' ")
+
+more <- check %>%
+  filter(!is.na(tag))%>%
+  group_by(questions, wave, tag) %>%
+  mutate(num = n()) %>%
+  ungroup() %>%
+  group_by(questions, wave) %>%
+  mutate(total = n()) %>%
+  mutate(ratio = num/total) %>%
+  filter(tag=="more-anti") %>%
+  ggplot(aes(x = wave, y = ratio, group = questions,color = questions )) + geom_line() +geom_point()+
+  scale_x_continuous(breaks = 2:13)+
+  ggtitle("more anti-immigrant")
+
 
 less <- check %>%
   filter(!is.na(tag))%>%
@@ -607,6 +643,8 @@ no_change <-check %>%
 scale_x_continuous(breaks = 2:13) +
   ggtitle("relatively constant")
 
+library(gridExtra)
+
 grid.arrange(more, less, no_change, ncol = 1)
 
 #---------------------------------------------------------------------------------------------------
@@ -617,56 +655,48 @@ max_min<-immig_check %>%
   mutate(max = max(std, na.rm = TRUE),
          min = min(std, na.rm = TRUE),
          diff = max - min) %>%
-  mutate(tag = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
+  mutate(tag = ifelse(questions %in% c("changeImmig", "immigrantsWelfareState", "immigrationLevel") &
                         diff >= 0.5,  #jump at least two level' 
-                      "big change",
-           ifelse(questions %in% c("changeImmig", "immigrantsWelfareState") &
+                      "significant change",
+           ifelse(questions %in% c("changeImmig", "immigrantsWelfareState","immigrationLevel") &
                         diff >= 0.25,  #jump at least one level'
-                      "small change",
+                      "tolerable change",
                         ifelse(questions %in% c("immigCultural", "immigEcon") &
                                       diff >= 0.5, # jump at least three levels' 
-                                    "big change",
+                                    "significant change",
                                ifelse(questions %in% c("immigCultural", "immigEcon") &
                                         diff >= 0.333, #'jump at least two levels' 
-                                      "small change",
+                                      "tolerable change",
                                            ifelse(is.na(diff), NA,
                                                   "no change"))))))
-max_min$tag<-factor(as.factor(max_min$tag),level =  c("big change",
-"small change", "no change", NA))
+max_min$tag<-factor(as.factor(max_min$tag),level =  c("significant change",
+"tolerable change", "no change", NA))
 
 require(scales)
 
-max_min %>%
+max_min_count <- max_min %>%
   filter(!is.na(tag))%>%
   group_by(questions,tag)%>%
   mutate(count = n()) %>%
   ungroup() %>%
   group_by(questions) %>%
-  mutate(total = n()) %>%
+  mutate(total = n())
+ct2 <- max_min_count %>%
+  ungroup()%>%
+  arrange(questions) %>%
+  select(total) %>%
+  unique()%>%
+  unlist(total, use.names = FALSE)
+
+max_min_count %>%  
   mutate(ratio = count/total) %>%
   select(ratio, questions, tag) %>%
   unique() %>%
   ggplot(aes(x = questions, y = ratio, group = tag, fill = tag)) +
-  labs(y = "Percent", fill = "") +
-  geom_bar(stat = "identity")
+  geom_bar(stat = "identity") +
+  labs(y = "Percent of the respondents", x = "Questions", 
+       fill = "Range of change \n(Max - Min)") +
+  annotate("text", x = 1:5, y = 0.1, label = c(as.character(ct2)))
 
-max_min %>%
-  filter(!is.na(tag)) %>%
-  ggplot(aes(x= questions, group = tag)) + 
-  geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count") +
-  geom_text(aes( label = scales::percent(..prop..),
-                 y= ..prop.. ), stat= "count", vjust = -.5) +
-  labs(y = "Percent", fill="tag") +
-  #facet_grid(~sex) +
-  scale_y_continuous(labels = scales::percent)
 
-max_min %>%
-  filter(questions %in% c("changeImmig","immigrantsWelfareState")) %>%
-  ggplot(aes(x = diff)) + geom_histogram(stat= "count", binwidth = 0.2)+
-  #scale_y_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1),labels = c(0,0.2,0.4,0.6,0.8,1) )+
-  facet_grid(questions~.)
 
-max_min %>%
-  filter(questions %in% c("immigCultural", "immigEcon")) %>%
-  ggplot(aes(x = diff)) + geom_histogram(stat= "count", binwidth = 0.2)+
-  facet_grid(questions~.)
