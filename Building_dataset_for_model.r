@@ -3,7 +3,36 @@ library(tidyverse)
 library(readstata13)
 
 
-dataset <- read.dta13("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta") 
+dataset2 <- read.dta13("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta", 
+                      convert.factors = TRUE,
+                      generate.factors = TRUE)
+
+dataset <- haven::read_dta("H:/DAT/BrExit/data/BES2017_W13_Panel_v1.2.dta")
+#------------------------------------------------------------------
+### columns of immigration-related factors
+immig <- c("immigrationLevel", "changeImmig", "immigEcon","immigCultural","controlImmig",
+           "effectsEUImmigration", #"euPriorityBalance", "govtHandleImmig"
+           "immigrantsWelfareState")#"promiseMigration","proposalMigration"
+           
+immig_index <-c()
+for(i in 1:length(immig)){
+  immig_index <-c(immig_index,grep(immig[i], names(dataset)))
+}
+
+labour_index <- grep(c("Lab","lab"),names(dataset)[immig_index])
+
+immig_index <- immig_index[-labour_index]
+immig_data <- dataset %>%
+  select(1,immig_index)
+save.image("immig_data.RData")
+
+write_csv(immig_data, "data/immig_cols.csv")
+# turned immigration responses to numeric
+
+
+# final dataset
+
+
 #------------------------------------------------------------------
 ### SMALL PIECES HERE AND THERE
 ## remove seemingly irrelevant factors
@@ -69,14 +98,11 @@ wave_index <- grep("^wave\\d+",colnames(dataset)) # remove'wave1:wave13'
 
 ## dataset that contains factors that were asked only once (static)
 static_factors <- dataset %>%
-  select(-wave_spec_index,-wave_index) %>%## 52 of them
+  select(-wave_spec_index,-wave_index) %>% ## 52 of them
   select(-profile_lea, -profile_oslaua, -profile_socialgrade_cie,-euRefLA,-onscode)
 # contain both age and age_group at this point
 
-
 ## TODO1:
-
-
 write.csv(static_factors,"data/dataset_static_factors.csv")
 
 
@@ -101,7 +127,8 @@ for(i in 1:13){
     wave_col <- grep(wave_name, colnames(opinion_dat))
     
     vote_name <- paste0("^euRefVoteW",i,"$")
-    vote_col<-grep(vote_name,colnames(opinion_dat))
+    vote_col <- grep(vote_name,colnames(opinion_dat))
+
     
     wave_i <- opinion_dat %>% 
       mutate(wave = i) %>%
@@ -169,13 +196,117 @@ temp_full <- temp %>%
   mutate(switch = ifelse(wave==1, 0, 
                          ifelse(full_vote!=pre_vote, 1, 0))) 
 
+# if only counting a complete switch from stay to leave, vice versa
+temp_po <- temp %>%
+  group_by(id) %>%
+  mutate(bi_vote = as.factor(ifelse(vote =="Leave the EU", "Leave the EU", 
+                       ifelse(vote =="Stay/remain in the EU", "Stay/remain in the EU",
+                              NA)))) %>%
+  mutate(full_vote = fillNAgaps(bi_vote)) %>%
+  mutate(pre_vote = lag(full_vote,1)) %>%
+  mutate(bi_switch = ifelse(wave == 1, 0, 
+                            ifelse(full_vote!=pre_vote,1,0)))
+  
+
 ## Compute switch
+# mild switch 
 switch_dat <- temp_full %>%
   summarise(num_wave_voted = sum(voted,na.rm = TRUE),
             num_switch = sum(switch,na.rm = TRUE)) %>% 
-  mutate(switch_ratio = ifelse(num_wave_voted == 0, 0, num_switch/num_wave_voted),
+  mutate(switch_ratio = ifelse(num_wave_voted %in% c(0,1), 0, num_switch/(num_wave_voted-1)),
          ifswitch = ifelse(num_switch>0, 1,0))
 
+switch_dat$ifswitch <- as.factor(switch_dat$ifswitch)
+
+write.csv(switch_dat, "opinion_switch.csv")
+
+
+
+count_switch <- function(row){
+  index <- grep("^euRefVoteW\\d+", names(opinion_dat))
+  first <- index[1]
+  pre_opinion <- row[first]
+  
+  switch_count <- 0
+  in_count <- 0
+  
+  for(i in index){
+    print(i)
+    cur_opinion <- row[i]
+    if(!is.na(cur_opinion)){
+      
+      # there is a switch
+     if(cur_opinion != pre_opinion){
+      switch_count <- switch_count + 1
+      pre_opinion <- cur_opinion
+     }
+      in_count <- in_count + 1
+    }
+    print(paste0("switch:", switch_count, "  in:", in_count))
+  }
+  return(switch_count)
+}
 dataset_static <- inner_join(switch_dat,static)
 write.csv(dataset_static, "data/dataset_static_factors.csv")
+
+write.csv(switch_dat, "data/jinlin_switch.csv", row.names = FALSE)
+
+# binary swtich
+switch_dat2 <- temp_po %>%
+  summarise(num_wave_voted = sum(voted,na.rm = TRUE),
+            num_bi_switch = sum(bi_switch,na.rm = TRUE)) %>% 
+  mutate(bi_switch_ratio = ifelse(num_wave_voted %in% c(0,1), 0, num_bi_switch/(num_wave_voted-1)),
+         bi_ifswitch = ifelse(num_bi_switch>0, 1,0))
+write.csv(switch_dat2, "data/bi_switch.csv", row.names = FALSE)
+
+## make the full dataset:
+# switch data
+# immig_index 
+# static factor
+switch_dat <-read.csv("data/jinlin_switch.csv")
+static <-read.csv("data/dataset_static_factors.csv")%>%
+  select(-personality_neuroticism, -personality_openness, 
+         -personality_agreeableness, -personality_conscientiousness,
+         -personality_extraversion,-Age, -motherNumEmployees, -fatherNumEmployees, -X)
+
+
+full <- switch_dat %>%
+  select(id, ifswitch, switch_ratio)%>%
+  inner_join(static) %>%
+  inner_join(immig_factor) %>%
+  mutate(voter_type = interaction(ifswitch,profile_eurefvote))
+full$headHouseholdPast<-plyr::revalue(as.factor(full$headHouseholdPast), 
+                                         c("1"="My father", "2"="My mother", 
+                                           "3" = "Someone else",
+                                           "4" = "No one in my house worked",
+                                           "9999" = "Don't know"))
+write.csv(full, "data/voter_type_data.csv", row.names = FALSE)
+trainIndex <- createDataPartition(full$voter_type, 
+                                  p = 0.75, list = FALSE,times = 1)
+train_dat <- full[trainIndex,]
+test_dat <- full[-trainIndex,]
+
+write.csv(train_dat, "data/training_voter_type.csv", row.names =FALSE)
+write.csv(test_dat, "data/test_voter_type.csv", row.names = FALSE)
+
+
+bi_full <- switch_dat2 %>%
+  select(id, bi_ifswitch, bi_switch_ratio)%>%
+  inner_join(static) %>%
+  inner_join(immig_factor) %>%
+  mutate(bi_voter_type = interaction(bi_ifswitch,profile_eurefvote)) 
+
+bi_full$headHouseholdPast<-plyr::revalue(as.factor(bi_full$headHouseholdPast), 
+                                        c("1"="My father", "2"="My mother", 
+                                          "3" = "Someone else",
+                                          "4" = "No one in my house worked",
+                                          "9999" = "Don't know"))
+write.csv(bi_full, "data/bi_voter_type_data.csv", row.names = FALSE)
+
+bi_trainIndex <- createDataPartition(bi_full$bi_voter_type, 
+                                  p = 0.75, list = FALSE,times = 1)
+train_dat2 <- bi_full[bi_trainIndex,]
+test_dat2 <- bi_full[-bi_trainIndex,]
+write.csv(train_dat2, "data/bi_training_voter_type.csv", row.names =FALSE)
+write.csv(test_dat2, "data/bi_test_voter_type.csv", row.names = FALSE)
 
