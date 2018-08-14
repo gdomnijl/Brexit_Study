@@ -32,6 +32,7 @@ write_csv(immig_data, "data/immig_cols.csv")
 
 # final dataset
 
+
 #------------------------------------------------------------------
 ### SMALL PIECES HERE AND THERE
 ## remove seemingly irrelevant factors
@@ -104,6 +105,7 @@ static_factors <- dataset %>%
 ## TODO1:
 write.csv(static_factors,"data/dataset_static_factors.csv")
 
+
 #------------------------------------------------------------------
 ### Compute SWITCHES
 ## Building dataset with opinion switch columns
@@ -126,6 +128,7 @@ for(i in 1:13){
     
     vote_name <- paste0("^euRefVoteW",i,"$")
     vote_col <- grep(vote_name,colnames(opinion_dat))
+
     
     wave_i <- opinion_dat %>% 
       mutate(wave = i) %>%
@@ -306,3 +309,4 @@ train_dat2 <- bi_full[bi_trainIndex,]
 test_dat2 <- bi_full[-bi_trainIndex,]
 write.csv(train_dat2, "data/bi_training_voter_type.csv", row.names =FALSE)
 write.csv(test_dat2, "data/bi_test_voter_type.csv", row.names = FALSE)
+

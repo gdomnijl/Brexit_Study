@@ -7,6 +7,7 @@ library(Amelia)
 # ------------------------------------------------------------------------------------------
 
 jinlin_dat <- read.csv("./data/jinlin_switch.csv")
+
 an_dat <- read.csv("./data/switches_calculated.csv")
 
 jinlin_dat$switch_ratio <- plyr::round_any(jinlin_dat$switch_ratio,0.0001, f = round)
@@ -48,6 +49,7 @@ write.csv(test_dat_ifswitch, "data/test_ifswitch.csv")
 
 # ------------------------------------------------------------------------------------------
 
+
 ## Modeling:
 factor<-read.csv("./data/dataset_static_factors.csv") %>% 
       # Note: removed Age; Reason: set NA to 0 to other levels, so use factor(AgeGroup) instead of continuous (Age) 
@@ -63,6 +65,7 @@ factor$headHouseholdPast<-plyr::revalue(as.factor(factor$headHouseholdPast),
 # ------------------------------------------------------------------------------------------
 
 ## on switch ratio:
+
 train_ratio <- read.csv("./data/training_switch_ratio2.csv") %>%
   select(-X)
 train_ratio$headHouseholdPast<-plyr::revalue(as.factor(train_ratio$headHouseholdPast), 
@@ -70,6 +73,7 @@ train_ratio$headHouseholdPast<-plyr::revalue(as.factor(train_ratio$headHousehold
                                           "3" = "Someone else",
                                           "4" = "No one in my house worked",
                                           "9999" = "Don't know"))
+
 ## TODO: Need to deal with NAs
 ## only left with 9043 without NAs
 ## PREVIOUS DECISION: Replaced all NAs with 0s 
@@ -79,6 +83,7 @@ train_ratio$headHouseholdPast<-plyr::revalue(as.factor(train_ratio$headHousehold
 for(i in 2:length(names(train_ratio))-1){
   if(class(train_ratio[,i]) == "factor"){
     train_ratio[,i]<-addNA(train_ratio[,i])
+
   }
 }
 
@@ -87,6 +92,7 @@ for(i in 2:length(names(train_ratio))-1){
 ## TODO: intercept?
 ## TODO: choose only factor-level or factor
 f <- reformulate(response = NULL, termlabels=names(train_ratio)[-c(1)], intercept = TRUE)
+
 options(na.action='na.pass')
 train_ratio_factor <- model.matrix(f, train_ratio) 
 ## 51470 points, 289 factor-levels with NA levels (not including default levels)
@@ -94,6 +100,7 @@ train_ratio_factor <- model.matrix(f, train_ratio)
 
 lasso_ratio <- cv.glmnet(x = train_ratio_factor[,-c(1,2)], y = train_ratio_factor[,2],
               alpha = 1, nlambda = 10, standardize = TRUE, family= "binomial", type.measure = "mse")
+
 ## 10-fold default
 #plot(lasso_ratio, xvar = "lambda", label = TRUE)
 #plot(lasso_ratio, xvar = "mse", label = TRUE)
@@ -104,6 +111,7 @@ plot.cv.glmnet(lasso_ratio)
 non_zero_fact <- coef@i[-1]
 non_zero_coef <- coef@x[-1]
 lasso_ratio_factors <- as.data.frame(cbind2(c("intercept",colnames(train_ratio_factor)[non_zero_fact+2]), ## here it is lining up just nicely
+
                              c(coef@x[1],non_zero_coef)))
 write.csv(lasso_ratio_factors, "21_lasso_factors_ratio.csv")
 
@@ -115,6 +123,7 @@ ridge_ratio <- glmnet(x = train_ratio_factor[,-1], y = train_ratio_factor[,1],
 #----------------------------------------------------------------------------------------
 ## on Ifswitch:
 train_ifswitch <- read.csv("data/training_ifswitch2.csv") %>% 
+
   select(id,ifswitch) %>%
   inner_join(factor)
 
@@ -145,6 +154,7 @@ lasso_ifswitch_factors <- as.data.frame(cbind2(c("intercept",colnames(train_ifsw
 write.csv(lasso_ifswitch_factors, "36_lasso_factors_ifswitch.csv")
 
 ## 
+
 dplyr::setdiff(lasso_ifswitch_factors$V1,lasso_ratio_factors$V1)
 
 lasso_ifswitch_factors %>%
@@ -176,6 +186,7 @@ result <- test_result %>%
 ptb<-table(result$response,result$ifswitch)
 sum(ptb[1,1]+ptb[2,2])/sum(ptb)
 # TODO: PUT BACK SOCIAL GRADE! 
+
 # TODO: correlation analysis
 # How to choose s
 # Then coefficient
@@ -234,7 +245,6 @@ gbmFit1 <- train(switch_ratio ~ ., data = train_ratio[,-c(1)],
                  ## This last option is actually one
                  ## for gbm() that passes through
                  verbose = FALSE)
-
 
 
 #----------------------------------------------------------------------------------------
